@@ -17,6 +17,7 @@ import (
 	"github.com/openbao/go-kms-wrapping/wrappers/gcpckms/v2"
 	"github.com/openbao/go-kms-wrapping/wrappers/kmip/v2"
 	"github.com/openbao/go-kms-wrapping/wrappers/ocikms/v2"
+	"github.com/openbao/go-kms-wrapping/wrappers/securosyshsm/v2"
 	"github.com/openbao/go-kms-wrapping/wrappers/static/v2"
 	"github.com/openbao/go-kms-wrapping/wrappers/transit/v2"
 )
@@ -33,6 +34,7 @@ var builtinWrappers = map[wrapping.WrapperType]builtinWrapper{
 	wrapping.WrapperTypeAzureKeyVault: {toWrapper(azurekeyvault.NewWrapper), true},
 	wrapping.WrapperTypeGcpCkms:       {toWrapper(gcpckms.NewWrapper), true},
 	wrapping.WrapperTypeOciKms:        {toWrapper(ocikms.NewWrapper), true},
+	wrapping.WrapperTypeSecurosysHsm:  {toWrapper(securosyshsm.NewWrapper), true},
 
 	wrapping.WrapperTypePkcs11: {func() (wrapping.Wrapper, error) {
 		// The real wrapper is conditionally enabled pkcs11.go.

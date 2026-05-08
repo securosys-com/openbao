@@ -9,7 +9,7 @@ module github.com/openbao/openbao
 // updated. If we choose not to do so at some point (e.g. because we don't want some new
 // semantic related to Go module handling), this comment should be updated to explain that.
 
-go 1.25.5
+go 1.25.8
 
 replace github.com/openbao/openbao/api/v2 => ./api
 
@@ -22,6 +22,12 @@ replace github.com/openbao/openbao/api/auth/userpass/v2 => ./api/auth/userpass
 replace github.com/openbao/openbao/sdk/v2 => ./sdk
 
 replace github.com/boltdb/bolt => ./helper/stubbolt
+
+replace github.com/openbao/go-kms-wrapping/v2 => github.com/securosys-com/go-kms-wrapping/v2 v2.0.0-20260507113125-c0100c6d0398
+
+replace github.com/openbao/go-kms-wrapping/wrappers/securosyshsm/v2 => github.com/securosys-com/go-kms-wrapping/wrappers/securosyshsm/v2 v2.0.0-20260507113125-c0100c6d0398
+
+replace github.com/openbao/go-kms-wrapping/kms/securosyshsm/v2 => github.com/securosys-com/go-kms-wrapping/kms/securosyshsm/v2 v2.0.0-20260507113125-c0100c6d0398
 
 require (
 	cloud.google.com/go/monitoring v1.27.0
@@ -106,6 +112,7 @@ require (
 	github.com/openbao/go-kms-wrapping/wrappers/kmip/v2 v2.1.0
 	github.com/openbao/go-kms-wrapping/wrappers/ocikms/v2 v2.2.0
 	github.com/openbao/go-kms-wrapping/wrappers/pkcs11/v2 v2.5.1
+	github.com/openbao/go-kms-wrapping/wrappers/securosyshsm/v2 v2.0.0-20260504192404-77ec54063852
 	github.com/openbao/go-kms-wrapping/wrappers/static/v2 v2.1.1
 	github.com/openbao/go-kms-wrapping/wrappers/transit/v2 v2.7.0
 	github.com/openbao/openbao-template v1.0.1
@@ -296,6 +303,7 @@ require (
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/miekg/dns v1.1.72 // indirect
 	github.com/miekg/pkcs11 v1.1.2-0.20231115102856-9078ad6b9d4b // indirect
+	github.com/mitchellh/cli v1.1.5 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
@@ -310,6 +318,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f // indirect
 	github.com/nicolai86/scaleway-sdk v1.10.2-0.20180628010248-798f60e20bb2 // indirect
+	github.com/openbao/go-kms-wrapping/kms/securosyshsm/v2 v2.0.0-00010101000000-000000000000 // indirect
 	github.com/openbao/openbao/api/auth/kubernetes/v2 v2.0.1 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
