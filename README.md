@@ -12,24 +12,23 @@ This integration is actively maintained by Securosys SA.
 
 - [Glossary](#glossary)
 - [Setup](#setup)
-
   - [Additional prerequisites for UI](#additional-prerequisites-for-ui)
 
 - [How to build OpenBao](#how-to-build-openbao)
-
   - [Using pre-built releases](#using-pre-built-releases)
   - [Build from sources](#build-from-sources)
 
 - [How to run OpenBao](#how-to-run-openbao)
-
   - [Developer Mode](#developer-mode)
   - [Production mode](#production-mode)
   - [Auto unseal (securosys-hsm)](#auto-unseal-securosys-hsm)
   - [Self-initialization with HCL files](#self-initialization-with-hcl-files)
   - [PKI external keys](#pki-external-keys)
+
 - [Examples with three HCL files](#examples-with-three-hcl-files)
 - [Getting Support](#getting-support)
 - [License](#license)
+
 ---
 
 ## Glossary
@@ -142,18 +141,19 @@ In the configuration file **config.hcl** add the additional seal configuration s
     approval_timeout = 600
   }
 ```
+
 > **Note:** The configuration section **seal securosys-hsm** is only validated on startup of the ** OpenBao Server**.
 
 Auto-unseal timeout settings:
 
-| Parameter | Default / example | Description |
-| :-- | :-- | :-- |
-| `check_every` | Default/example: `5` seconds | How often OpenBao checks the HSM approval status. Must be greater than `0`. |
-| `approval_timeout` | Default/example: `600` seconds (10 minutes) | Maximum time to wait for HSM approval. Must be greater than `check_every`. |
-| `http_read_timeout` | OpenBao default is `30s`; `2000s` in `config/config.hcl` | Listener read timeout. Increase it for long approval flows. |
-| `http_write_timeout` | OpenBao default is unlimited (`0`); `2000s` in `config/config.hcl` | Listener write timeout. Increase it for long approval flows. |
-| `log_level` | `debug` in `config/autounseal.hcl` | Seal wrapper log verbosity. Use `info` or `warn` for normal operation. |
-| `log_file` | Path in `config/autounseal.hcl` | Optional file for seal wrapper logs. |
+| Parameter            | Default / example                                                  | Description                                                                 |
+| :------------------- | :----------------------------------------------------------------- | :-------------------------------------------------------------------------- |
+| `check_every`        | Default/example: `5` seconds                                       | How often OpenBao checks the HSM approval status. Must be greater than `0`. |
+| `approval_timeout`   | Default/example: `600` seconds (10 minutes)                        | Maximum time to wait for HSM approval. Must be greater than `check_every`.  |
+| `http_read_timeout`  | OpenBao default is `30s`; `2000s` in `config/config.hcl`           | Listener read timeout. Increase it for long approval flows.                 |
+| `http_write_timeout` | OpenBao default is unlimited (`0`); `2000s` in `config/config.hcl` | Listener write timeout. Increase it for long approval flows.                |
+| `log_level`          | `debug` in `config/autounseal.hcl`                                 | Seal wrapper log verbosity. Use `info` or `warn` for normal operation.      |
+| `log_file`           | Path in `config/autounseal.hcl`                                    | Optional file for seal wrapper logs.                                        |
 
 ---
 
@@ -230,7 +230,7 @@ curl \
 
 Required fields:
 
-- `provider`: external key provider name.
+- `provider`: external key provider name. Supports (securosys-hsm)
 - `config`: provider-specific connection configuration used to open the HSM/KMS client.
 
 Supported `config.auth` values:
@@ -429,16 +429,18 @@ EOT
 ```
 
 ## Getting Support
+
 **Community Support for Securosys open source software:**
 In our Community we welcome contributions. The Community software is open source and community supported, there is no support SLA, but a helpful best-effort Community.
 
- - To report a problem or suggest a new feature, use the [Issues](https://github.com/securosys-com/hcvault-ce-rest-integration/issues) tab. 
+- To report a problem or suggest a new feature, use the [Issues](https://github.com/securosys-com/hcvault-ce-rest-integration/issues) tab.
 
-**Commercial Support for REST/TSB and HSM related issues:** 
+**Commercial Support for REST/TSB and HSM related issues:**
 Securosys customers having an active support contract, open a support ticket via [Securosys Support Portal](https://support.securosys.com/external/service-catalogue/21).
 
 **Getting a temporary CloudsHSM developer account:**
-Check-out a time limited developer account by registering [here](https://app.securosys.com) and choosing *Trial Account*.
+Check-out a time limited developer account by registering [here](https://app.securosys.com) and choosing _Trial Account_.
 
 ## License
- Securosys REST-based HSM integration in HashiCorp OpenBao CE is licensed under the HashiCorp Business Source License, please see [LICENSE](https://github.com/securosys-com/hcvault-ce-rest-integration/LICENSE). 
+
+Securosys REST-based HSM integration in HashiCorp OpenBao CE is licensed under the HashiCorp Business Source License, please see [LICENSE](https://github.com/securosys-com/hcvault-ce-rest-integration/LICENSE).

@@ -317,7 +317,7 @@ func (sc *storageContext) listKeysPage(after string, limit int) ([]keyID, error)
 }
 func (sc *storageContext) initKmsClient(provider string) (kms.KMS, error) {
 	switch provider {
-	case "securosyshsm":
+	case "securosys-hsm":
 		return securosyshsm.New(), nil
 	default:
 		return nil, fmt.Errorf("unsupported KMS provider %q", provider)
