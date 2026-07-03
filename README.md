@@ -152,8 +152,6 @@ Auto-unseal timeout settings:
 | `approval_timeout`   | Default/example: `600` seconds (10 minutes)                        | Maximum time to wait for HSM approval. Must be greater than `check_every`.  |
 | `http_read_timeout`  | OpenBao default is `30s`; `2000s` in `config/config.hcl`           | Listener read timeout. Increase it for long approval flows.                 |
 | `http_write_timeout` | OpenBao default is unlimited (`0`); `2000s` in `config/config.hcl` | Listener write timeout. Increase it for long approval flows.                |
-| `log_level`          | `debug` in `config/autounseal.hcl`                                 | Seal wrapper log verbosity. Use `info` or `warn` for normal operation.      |
-| `log_file`           | Path in `config/autounseal.hcl`                                    | Optional file for seal wrapper logs.                                        |
 
 ---
 
@@ -373,8 +371,6 @@ ui           = true
 plugin_directory = "./plugins"
 
 seal "securosys-hsm" {
-  log_file         = "replace-me_log_file"
-  log_level        = "debug"
   key_label        = "replace-me_key_label"
   key_password     = "replace-me_key_password"
   tsb_api_endpoint = "replace-me_tsb_api_endpoint"
