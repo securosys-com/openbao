@@ -95,7 +95,7 @@ the root of this repository. That document is considered part of this document.
 
 | Working Group                                                  | Chair       | Voting Members                                                                      |
 |----------------------------------------------------------------|-------------| ----------------------------------------------------------------------------------- |
-| [Development Working Group](https://github.com/openbao/dev-wg) | Alex Scheel | Dan Ghita, Nathan Phelps, Jan Martens, Dave Dykstra, Jonas Köhnen, Andrii Fedorchuk |
+| [Development Working Group](https://github.com/openbao/dev-wg) | Alex Scheel | Dan Ghita, Nathan Phelps, Jan Martens, Dave Dykstra, Jonas Köhnen, Andrii Fedorchuk, Wojciech Slabosz, Huy Dinh, Philipp Stehle, Pascal Reeb |
 
 ## Issues
 
@@ -111,6 +111,9 @@ quickly merge or address your contributions.
 > Please do not use generative AI to create issues against OpenBao; take the
 > time to comment in your own words. Issues which are very clearly AI
 > generated may be closed and/or locked with no response from the community.
+>
+> This includes security reports sent to the security mailing list or submitted
+> as GitHub security advisories.
 
 * Make sure you test against the latest released version. It is possible we
   already fixed the bug you're experiencing. Even better is if you can test
@@ -134,6 +137,9 @@ quickly merge or address your contributions.
 * Use of generative AI as an assistant in debugging or understanding issues
   remains okay, but please do not post AI generated text, _especially_ without
   clearly identifying it as such.
+
+* Refer to our [security policy](https://github.com/openbao/.github/blob/main/SECURITY.md)
+  for context on our responsible disclosure procedure.
 
 ### Issue Lifecycle
 
