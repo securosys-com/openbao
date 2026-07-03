@@ -3549,7 +3549,8 @@ func TestBackend_URI_SANs(t *testing.T) {
 	if cert.URIs[0].String() != URI0.String() || cert.URIs[1].String() != URI1.String() {
 		t.Fatalf(
 			"expected URIs SANs %v to equal provided values spiffe://host.com/something, http://someuri/abc",
-			cert.URIs)
+			cert.URIs,
+		)
 	}
 }
 
@@ -3628,7 +3629,8 @@ func TestBackend_IP_SANs(t *testing.T) {
 	if cert.IPAddresses[0].String() != IP0.String() || cert.IPAddresses[1].String() != IP1.String() {
 		t.Fatalf(
 			"expected IPs SANs %v to equal provided values 1.2.3.4, 1.2.3.5",
-			cert.IPAddresses)
+			cert.IPAddresses,
+		)
 	}
 }
 
@@ -4119,7 +4121,8 @@ func TestBackend_RevokePlusTidy_Intermediate(t *testing.T) {
 	// This test is not parallelizable.
 	inmemSink := metrics.NewInmemSink(
 		1000000*time.Hour,
-		2000000*time.Hour)
+		2000000*time.Hour,
+	)
 
 	metricsConf := metrics.DefaultConfig("")
 	metricsConf.EnableHostname = false
@@ -4448,7 +4451,8 @@ func TestBackend_RevokePlusTidy_MultipleCerts(t *testing.T) {
 	// Set up metrics and Vault cluster
 	inmemSink := metrics.NewInmemSink(
 		1000000*time.Hour,
-		2000000*time.Hour)
+		2000000*time.Hour,
+	)
 
 	metricsConf := metrics.DefaultConfig("")
 	metricsConf.EnableHostname = false
@@ -7417,9 +7421,12 @@ func TestProperAuthing(t *testing.T) {
 		"issuers/import/bundle":                  shouldBeAuthed,
 		"key/default":                            shouldBeAuthed,
 		"keys":                                   shouldBeAuthed,
+		"keys/external/config":                   shouldBeAuthed,
+		"keys/external/config/test":              shouldBeAuthed,
 		"keys/generate/internal":                 shouldBeAuthed,
 		"keys/generate/exported":                 shouldBeAuthed,
 		"keys/generate/kms":                      shouldBeAuthed,
+		"keys/generate/external":                 shouldBeAuthed,
 		"keys/import":                            shouldBeAuthed,
 		"ocsp":                                   shouldBeUnauthedWriteOnly,
 		"ocsp/dGVzdAo=":                          shouldBeUnauthedReadList,
@@ -7493,6 +7500,9 @@ func TestProperAuthing(t *testing.T) {
 		// Substitute values in from our testing map.
 		raw_path := openapi_path[5:]
 		if strings.Contains(raw_path, "roles/") && strings.Contains(raw_path, "{name}") {
+			raw_path = strings.ReplaceAll(raw_path, "{name}", "test")
+		}
+		if strings.Contains(raw_path, "keys/external/config/") && strings.Contains(raw_path, "{name}") {
 			raw_path = strings.ReplaceAll(raw_path, "{name}", "test")
 		}
 		if strings.Contains(raw_path, "{role}") {

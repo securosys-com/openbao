@@ -47,7 +47,6 @@ import (
 )
 
 const (
-	replTimeout                           = 1 * time.Second
 	EnvVaultDisableLocalAuthMountEntities = "BAO_DISABLE_LOCAL_AUTH_MOUNT_ENTITIES"
 
 	// coreLockedUsersPath is a base path to store locked users
@@ -94,7 +93,6 @@ func init() {
 		"internal/counters/activity/monthly",
 		"internal/counters/config",
 		"internal/inspect/router",
-		"key-status",
 		"loggers",
 		"metrics",
 		"mfa/method",
@@ -110,11 +108,6 @@ func init() {
 		"replication/recover",
 		"replication/reindex",
 		"replication/status",
-		"rotate",
-		"rotate/root",
-		"rotate/config",
-		"rotate/keyring",
-		"rotate/keyring/config",
 		"seal",
 		"sealwrap/rewrap",
 		"step-down",
@@ -316,9 +309,7 @@ func (c *Core) fetchACLTokenEntryAndEntity(ctx context.Context, req *logical.Req
 		var valid bool
 		remoteSockAddr, err := sockaddr.NewSockAddr(req.Connection.RemoteAddr)
 		if err != nil {
-			if c.Logger().IsDebug() {
-				c.Logger().Debug("could not parse remote addr into sockaddr", "error", err, "remote_addr", req.Connection.RemoteAddr)
-			}
+			c.Logger().Debug("could not parse remote addr into sockaddr", "error", err, "remote_addr", req.Connection.RemoteAddr)
 			return nil, nil, nil, nil, logical.ErrPermissionDenied
 		}
 		for _, cidr := range te.BoundCIDRs {
@@ -457,7 +448,7 @@ func (c *Core) CheckToken(ctx context.Context, req *logical.Request, unauth bool
 		delete(req.Headers, consts.InlineAuthPathHeaderName)
 		delete(req.Headers, consts.InlineAuthOperationHeaderName)
 		for header := range req.Headers {
-			if !strings.HasPrefix(header, consts.InlineAuthParameterHeaderPrefix) {
+			if strings.HasPrefix(header, consts.InlineAuthParameterHeaderPrefix) {
 				delete(req.Headers, header)
 			}
 		}
@@ -583,7 +574,7 @@ func (c *Core) switchedLockHandleRequest(httpCtx context.Context, req *logical.R
 		return nil, consts.ErrSealed
 	}
 
-	if c.activeContext == nil || c.activeContext.Err() != nil {
+	if c.activeContext.Load().Err() != nil {
 		if c.standby.Load() {
 			return nil, logical.ErrPerfStandbyPleaseForward
 		}
@@ -594,24 +585,44 @@ func (c *Core) switchedLockHandleRequest(httpCtx context.Context, req *logical.R
 	// so we have a clean context with few values in it, and the http request
 	// context so that if the remote peer closes the connection, we can
 	// properly stop this request.
-	ctx, cancel := context.WithCancel(c.activeContext)
+	ctx, cancel := context.WithCancel(c.activeContext.Load())
 	defer cancel()
 
 	stop := context.AfterFunc(httpCtx, cancel)
 	defer stop()
 
-	// A namespace was manually passed to HandleRequest, as can be the case with:
-	// 1. Synthesized logical requests not originating from an HTTP request
-	// 2. Tests
-	ns, err := namespace.FromContext(httpCtx)
-	var nsHeader string
-	if err != nil {
-		// If the above is not the case, resolve the namespace from header & request path.
-		nsHeader = namespace.HeaderFromContext(httpCtx)
-		ns, req.Path = c.namespaceStore.ResolveNamespaceFromRequest(nsHeader, req.Path)
-		if ns == nil {
-			return nil, logical.CodedError(http.StatusNotFound, "namespace not found")
-		}
+	nsHeader := namespace.HeaderFromContext(httpCtx)
+	contextNS, err := namespace.FromContext(httpCtx)
+	haveContextNS := err == nil
+
+	if haveContextNS {
+		// If we have a namespace in context, prepend its path to namespace
+		// header. As a result, the namespace header is relative when a
+		// namespace is in context (e.g., if this call originates from the
+		// workflow store), but absolute otherwise. A canonicalized namespace
+		// path ends in a '/', so a basic concatenation is fine.
+		nsHeader = contextNS.Path + nsHeader
+	}
+
+	// Resolve the namespace for this request from header & path.
+	var ns *namespace.Namespace
+	ns, req.Path = c.namespaceStore.ResolveNamespaceFromRequest(nsHeader, req.Path)
+	if ns == nil {
+		return nil, logical.CodedError(http.StatusNotFound, "namespace not found")
+	}
+
+	if haveContextNS && !ns.HasParent(contextNS) {
+		// If we were externally passed a namespace via context previously (as
+		// is the case for some tests and synthetic requests sent within
+		// core), ensure that the namespace resolved above does not escape the
+		// context's namespace. This is important e.g. for the workflow store,
+		// where we'd like subsequent requests to not escape the namespace that
+		// the workflow is hosted in.
+		return nil, logical.CodedError(
+			http.StatusBadRequest,
+			"subsequent request to namespace %q cannot escape namespace %q",
+			ns.Path, contextNS.Path,
+		)
 	}
 
 	if ns.ID != namespace.RootNamespaceID {
@@ -889,7 +900,7 @@ func (c *Core) handleCancelableRequest(ctx context.Context, req *logical.Request
 		// using the token's embedded nsID if a relative path was provided.
 		// The operation will still be gated by ACLs, which are checked later.
 		case "auth/token/lookup", "auth/token/renew", "auth/token/revoke", "auth/token/revoke-orphan":
-			token, ok := req.Data["token"]
+			raw, ok := req.Data["token"]
 			// If the token is not present (e.g. a bad request), break out and let the backend
 			// handle the error
 			if !ok {
@@ -901,14 +912,15 @@ func (c *Core) handleCancelableRequest(ctx context.Context, req *logical.Request
 				}
 				break
 			}
-			if token == nil {
+			token, ok := raw.(string)
+			if !ok {
 				return logical.ErrorResponse("invalid token"), logical.ErrPermissionDenied
 			}
 			// We don't care if the token is a server side consistent token or not. Either way, we're going
 			// to be returning it for these paths instead of the short token stored in vault.
-			requestBodyToken = token.(string)
-			if IsSSCToken(token.(string)) {
-				token, err = c.CheckSSCToken(ctx, token.(string), c.isLoginRequest(ctx, req))
+			requestBodyToken = token
+			if IsSSCToken(token) {
+				token, err = c.CheckSSCToken(ctx, token, c.isLoginRequest(ctx, req))
 				// If we receive an error from CheckSSCToken, we can assume the token is bad somehow, and the client
 				// should receive a 403 bad token error like they do for all other invalid tokens, unless the error
 				// specifies that we should forward the request or retry the request.
@@ -920,7 +932,7 @@ func (c *Core) handleCancelableRequest(ctx context.Context, req *logical.Request
 				}
 				req.Data["token"] = token
 			}
-			_, nsID := namespace.SplitIDFromString(token.(string))
+			_, nsID := namespace.SplitIDFromString(token)
 			if nsID != "" {
 				ns, err := c.NamespaceByID(ctx, nsID)
 				if err != nil {
@@ -936,26 +948,54 @@ func (c *Core) handleCancelableRequest(ctx context.Context, req *logical.Request
 	// The following relative sys/leases/ paths handles re-routing requests
 	// to the proper namespace using the lease ID on applicable paths.
 	case strings.HasPrefix(req.Path, "sys/leases/"):
-		switch req.Path {
 		// For the following operations, we can set the proper namespace context
-		// using the lease's embedded nsID if a relative path was provided.
-		// The operation will still be gated by ACLs, which are checked later.
-		case "sys/leases/lookup", "sys/leases/renew", "sys/leases/revoke", "sys/leases/revoke-force":
-			leaseID, ok := req.Data["lease_id"]
-			// If lease ID is not present, break out and let the backend handle the error
-			if !ok || leaseID == nil {
-				break
+		// using the lease's embedded nsID if a relative path was provided. The
+		// operation will still be gated by ACLs, which are checked later.
+		//
+		// sys/leases/lookup takes 'lease_id' by request data only, but
+		// sys/leases/renew and sys/leases/revoke take it by path segment, too.
+		// Request data takes precedence in any case.
+		byData, byPath := any(nil), ""
+		switch req.Path {
+		case "sys/leases/lookup", "sys/leases/renew", "sys/leases/revoke":
+			byData = req.Data["lease_id"]
+		default:
+			for _, prefix := range []string{
+				"sys/leases/renew/", "sys/leases/revoke/",
+			} {
+				if suffix, ok := strings.CutPrefix(req.Path, prefix); ok {
+					byData, byPath = req.Data["lease_id"], suffix
+				}
 			}
-			_, nsID := namespace.SplitIDFromString(leaseID.(string))
-			if nsID != "" {
-				ns, err := c.NamespaceByID(ctx, nsID)
-				if err != nil {
-					c.Logger().Warn("error looking up namespace from the lease's namespace ID", "error", err)
-					return nil, err
-				}
-				if ns != nil {
-					ctx = namespace.ContextWithNamespace(ctx, ns)
-				}
+		}
+
+		leaseID, ok := "", false
+		if byData != nil {
+			leaseID, ok = byData.(string)
+		} else {
+			leaseID, ok = byPath, true
+		}
+
+		// Check for a failed conversion and error if so.
+		if !ok {
+			return logical.ErrorResponse("invalid lease ID"), logical.ErrInvalidRequest
+		}
+
+		// If lease ID is not present or empty, break out and let the backend
+		// handle the error.
+		if leaseID == "" {
+			break
+		}
+
+		_, nsID := namespace.SplitIDFromString(leaseID)
+		if nsID != "" {
+			ns, err := c.NamespaceByID(ctx, nsID)
+			if err != nil {
+				c.Logger().Warn("error looking up namespace from the lease's namespace ID", "error", err)
+				return nil, err
+			}
+			if ns != nil {
+				ctx = namespace.ContextWithNamespace(ctx, ns)
 			}
 		}
 
@@ -1168,7 +1208,7 @@ func (c *Core) handleRequest(ctx context.Context, req *logical.Request) (retResp
 			// valid request (this is the token's final use). We pass the ID in
 			// directly just to be safe in case something else modifies te later.
 			defer func(id string) {
-				nsActiveCtx := namespace.ContextWithNamespace(c.activeContext, ns)
+				nsActiveCtx := namespace.ContextWithNamespace(c.activeContext.Load(), ns)
 				leaseID, err := c.expiration.CreateOrFetchRevocationLeaseByToken(nsActiveCtx, te)
 				if err == nil {
 					err = c.expiration.LazyRevoke(ctx, leaseID)
@@ -1291,8 +1331,7 @@ func (c *Core) handleRequest(ctx context.Context, req *logical.Request) (retResp
 
 	// If there is a secret, we must register it with the expiration manager.
 	// We exclude renewal of a lease, since it does not need to be re-registered
-	if resp != nil && resp.Secret != nil && !strings.HasPrefix(req.Path, "sys/renew") &&
-		!strings.HasPrefix(req.Path, "sys/leases/renew") {
+	if resp != nil && resp.Secret != nil && !strings.HasPrefix(req.Path, "sys/leases/renew") {
 		// KV mounts should return the TTL but not register
 		// for a lease as this provides a massive slowdown
 		registerLease := true
@@ -1390,10 +1429,14 @@ func (c *Core) handleRequest(ctx context.Context, req *logical.Request) (retResp
 	}
 
 	// Only the token store is allowed to return an auth block, for any
-	// other request this is an internal error.
+	// other request this is an internal error. When the request fails,
+	// do not generate a token even if the backend returned an auth block.
+	if resp != nil && resp.Auth != nil && routeErr != nil {
+		resp.Auth = nil
+	}
 	if resp != nil && resp.Auth != nil {
 		if !strings.HasPrefix(req.Path, "auth/token/") {
-			c.logger.Error("unexpected Auth response for non-token backend", "request_path", req.Path)
+			c.logger.Error("unexpected auth response for non-token backend", "request_path", req.Path)
 			retErr = multierror.Append(retErr, ErrInternalError)
 			return nil, auth, retErr
 		}
@@ -1671,8 +1714,21 @@ func (c *Core) handleLoginRequest(ctx context.Context, req *logical.Request) (re
 		retErr = multierror.Append(retErr, ErrInternalError)
 		return retResp, retAuth, retErr
 	}
+
 	// If the response generated an authentication, then generate the token
+	// only if it did not also err as the err would shadow the token.
+	if resp != nil && resp.Auth != nil && routeErr != nil {
+		resp.Auth = nil
+	}
 	if resp != nil && resp.Auth != nil && req.Path != "sys/mfa/validate" {
+		// When the request path is part of a logical backend (and not a
+		// credential backend), reject the token creation.
+		if !strings.HasPrefix(req.Path, "auth/") {
+			c.logger.Error("unexpected auth response for logical secret backend", "request_path", req.Path)
+			retErr = multierror.Append(retErr, ErrInternalError)
+			return nil, nil, retErr
+		}
+
 		// Check for request role in context to role based quotas
 		var role string
 		reqRole := ctx.Value(logical.CtxKeyRequestRole{})
@@ -2078,7 +2134,7 @@ func (c *Core) isUserLocked(ctx context.Context, mountEntry *routing.MountEntry,
 			return nil, false, fmt.Errorf("could not retrieve namespace from context: %w", err)
 		}
 
-		view := NamespaceScopedView(c.barrier, ns).SubView(coreLockedUsersPath).SubView(loginUserInfoKey.mountAccessor + "/")
+		view := c.NamespaceView(ns).SubView(coreLockedUsersPath + loginUserInfoKey.mountAccessor + "/")
 		existingEntry, err := view.Get(ctx, loginUserInfoKey.aliasName)
 		if err != nil {
 			return nil, false, err
@@ -2356,7 +2412,7 @@ func (c *Core) LocalUpdateUserFailedLoginInfo(ctx context.Context, userKey Faile
 		}
 
 		// Write to the physical backend
-		view := NamespaceScopedView(c.barrier, mountEntry.Namespace).SubView(coreLockedUsersPath).SubView(userKey.mountAccessor + "/")
+		view := c.NamespaceView(mountEntry.Namespace).SubView(coreLockedUsersPath + userKey.mountAccessor + "/")
 		if err := view.Put(ctx, entry); err != nil {
 			c.logger.Error("failed to persist failed login user entry", "namespace", mountEntry.Namespace.Path, "error", err)
 			return err

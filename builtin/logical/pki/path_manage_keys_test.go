@@ -118,6 +118,123 @@ func TestPKI_PathManageKeys_GenerateExportedKeys(t *testing.T) {
 	require.Equal(t, elliptic.P224(), key.Curve, "got unexpected curve value in returned private key")
 }
 
+func TestPKI_PathManageKeys_GenerateExternalKeyReference(t *testing.T) {
+	t.Parallel()
+	b, s := CreateBackendWithStorage(t)
+	sc := b.makeStorageContext(t.Context(), s)
+
+	resp, err := b.HandleRequest(t.Context(), &logical.Request{
+		Operation: logical.UpdateOperation,
+		Path:      "keys/generate/external",
+		Storage:   s,
+		Data: map[string]interface{}{
+			keyNameParam:           "missing-config-key",
+			keyTypeParam:           "rsa",
+			"external_config_name": "missing-config",
+			"external_key_options": map[string]interface{}{
+				"name": "external-rsa-key",
+			},
+		},
+		MountPoint: "pki/",
+	})
+	require.NoError(t, err, "failed generating external key with missing config")
+	require.NotNil(t, resp, "got nil response generating external key with missing config")
+	require.True(t, resp.IsError(), "expected missing external config to return an error")
+
+	err = sc.writeExternalConfig(&kmsConfigEntry{
+		Name:     "test-config",
+		Provider: "test-provider",
+		Config: map[string]any{
+			"endpoint": "test",
+		},
+	})
+	require.NoError(t, err, "failed writing external config")
+
+	resp, err = b.HandleRequest(t.Context(), &logical.Request{
+		Operation: logical.UpdateOperation,
+		Path:      "keys/generate/external",
+		Storage:   s,
+		Data: map[string]interface{}{
+			keyNameParam:           "missing-external-key-options",
+			keyTypeParam:           "rsa",
+			"external_config_name": "test-config",
+		},
+		MountPoint: "pki/",
+	})
+	require.NoError(t, err, "failed generating external key without external key options")
+	require.NotNil(t, resp, "got nil response generating external key without external key options")
+	require.True(t, resp.IsError(), "expected missing external_key_options to return an error")
+
+	resp, err = b.HandleRequest(t.Context(), &logical.Request{
+		Operation: logical.UpdateOperation,
+		Path:      "keys/generate/external",
+		Storage:   s,
+		Data: map[string]interface{}{
+			keyNameParam:           "missing-external-key-options-name",
+			keyTypeParam:           "rsa",
+			"external_config_name": "test-config",
+			"external_key_options": map[string]interface{}{},
+		},
+		MountPoint: "pki/",
+	})
+	require.NoError(t, err, "failed generating external key without external key options name")
+	require.NotNil(t, resp, "got nil response generating external key without external key options name")
+	require.True(t, resp.IsError(), "expected missing external_key_options.name to return an error")
+
+	resp, err = b.HandleRequest(t.Context(), &logical.Request{
+		Operation: logical.UpdateOperation,
+		Path:      "keys/generate/external",
+		Storage:   s,
+		Data: map[string]interface{}{
+			keyNameParam:           "external-key-name",
+			keyTypeParam:           "rsa",
+			"external_config_name": "test-config",
+			"external_key_options": map[string]interface{}{
+				"name":     "external-rsa-key",
+				"password": "test-password",
+			},
+		},
+		MountPoint: "pki/",
+	})
+	schema.ValidateResponse(t, schema.GetResponseSchema(t, b.Route("keys/generate/external"), logical.UpdateOperation), resp, true)
+
+	require.NoError(t, err, "failed generating external key")
+	require.NotNil(t, resp, "got nil response generating external key")
+	require.False(t, resp.IsError(), "got error response generating external key: %#v", resp.Error())
+	require.Equal(t, certutil.RSAPrivateKey, resp.Data[keyTypeParam])
+	require.Equal(t, "external-key-name", resp.Data[keyNameParam])
+	require.NotEmpty(t, resp.Data[keyIdParam], "returned an empty key_id field")
+	require.Nil(t, resp.Data["private_key"], "private_key field should not appear in external generation type")
+
+	keyID := resp.Data[keyIdParam].(keyID)
+	key, err := sc.fetchKeyById(keyID)
+	require.NoError(t, err, "failed fetching generated external key")
+	require.NotNil(t, key.ExternalKey, "generated key did not store external key reference")
+	require.Equal(t, "test-config", key.ExternalKey.ConfigName)
+	require.Equal(t, "rsa", key.ExternalKey.KeyType)
+	require.Equal(t, "external-rsa-key", key.ExternalKey.Options["name"])
+	require.Equal(t, "test-password", key.ExternalKey.Options["password"])
+	require.Empty(t, key.PrivateKey, "external key should not store private key material")
+
+	resp, err = b.HandleRequest(t.Context(), &logical.Request{
+		Operation: logical.UpdateOperation,
+		Path:      "keys/generate/external",
+		Storage:   s,
+		Data: map[string]interface{}{
+			keyNameParam:           "duplicate-external-key-name",
+			keyTypeParam:           "rsa",
+			"external_config_name": "test-config",
+			"external_key_options": map[string]interface{}{
+				"name": "external-rsa-key",
+			},
+		},
+		MountPoint: "pki/",
+	})
+	require.NoError(t, err, "failed generating duplicate external key")
+	require.NotNil(t, resp, "got nil response generating duplicate external key")
+	require.True(t, resp.IsError(), "expected duplicate external key reference to return an error")
+}
+
 func TestPKI_PathManageKeys_ImportKeyBundle(t *testing.T) {
 	t.Parallel()
 	b, s := CreateBackendWithStorage(t)

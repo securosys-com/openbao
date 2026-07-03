@@ -4,7 +4,9 @@
 package pki
 
 import (
+	"context"
 	"crypto"
+	"crypto/x509"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -13,8 +15,8 @@ import (
 	"github.com/openbao/openbao/sdk/v2/helper/errutil"
 )
 
-func comparePublicKey(key *keyEntry, publicKey crypto.PublicKey) (bool, error) {
-	publicKeyForKeyEntry, err := getPublicKey(key)
+func comparePublicKey(sc *storageContext, key *keyEntry, publicKey crypto.PublicKey) (bool, error) {
+	publicKeyForKeyEntry, err := getPublicKey(sc, key)
 	if err != nil {
 		return false, err
 	}
@@ -22,12 +24,40 @@ func comparePublicKey(key *keyEntry, publicKey crypto.PublicKey) (bool, error) {
 	return certutil.ComparePublicKeysAndType(publicKeyForKeyEntry, publicKey)
 }
 
-func getPublicKey(key *keyEntry) (crypto.PublicKey, error) {
-	signer, _, _, err := getSignerFromKeyEntryBytes(key)
+func getPublicKey(sc *storageContext, key *keyEntry) (crypto.PublicKey, error) {
+	signer, _, _, err := getSignerFromKeyEntry(sc, key)
 	if err != nil {
 		return nil, err
 	}
 	return signer.Public(), nil
+}
+func getSignerFromKeyEntry(sc *storageContext, entry *keyEntry) (crypto.Signer, certutil.BlockType, *pem.Block, error) {
+	ctx := context.Background()
+	if entry.ExternalKey == nil {
+		return getSignerFromKeyEntryBytes(entry)
+	}
+
+	key, err := sc.resolveKMSKey(ctx, entry.ExternalKey)
+	if err != nil {
+		return nil, certutil.UnknownBlock, nil, err
+	}
+
+	signer, err := NewKMSSigner(ctx, key)
+	if err != nil {
+		return nil, certutil.UnknownBlock, nil, err
+	}
+
+	pub := signer.Public()
+
+	der, err := x509.MarshalPKIXPublicKey(pub)
+	if err != nil {
+		return nil, certutil.UnknownBlock, nil, err
+	}
+
+	return signer, certutil.UnknownBlock, &pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: der,
+	}, nil
 }
 
 func getSignerFromKeyEntryBytes(key *keyEntry) (crypto.Signer, certutil.BlockType, *pem.Block, error) {

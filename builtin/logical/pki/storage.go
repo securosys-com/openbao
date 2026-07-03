@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-uuid"
+	"github.com/openbao/go-kms-wrapping/kms/securosyshsm/v2"
+	"github.com/openbao/go-kms-wrapping/v2/kms"
 	"github.com/openbao/openbao/sdk/v2/helper/certutil"
 	"github.com/openbao/openbao/sdk/v2/helper/errutil"
 	"github.com/openbao/openbao/sdk/v2/logical"
@@ -25,6 +27,7 @@ const (
 	storageKeyConfig      = "config/keys"
 	storageIssuerConfig   = "config/issuers"
 	keyPrefix             = "config/key/"
+	kmsConfigPrefix       = "config/external/"
 	issuerPrefix          = "config/issuer/"
 	storageLocalCRLConfig = "crls/config"
 
@@ -75,6 +78,20 @@ type keyEntry struct {
 	Name           string                  `json:"name"`
 	PrivateKeyType certutil.PrivateKeyType `json:"private_key_type"`
 	PrivateKey     string                  `json:"private_key"`
+	// New KMS-backed key
+	ExternalKey *externalKeyRef `json:"external_key,omitempty"`
+}
+type externalKeyRef struct {
+	ConfigName string         `json:"config_name"`
+	Provider   string         `json:"provider"`
+	KeyName    string         `json:"key_name,omitempty"`
+	KeyType    string         `json:"key_type"`
+	Options    map[string]any `json:"options,omitempty"`
+}
+type kmsConfigEntry struct {
+	Name     string         `json:"name"`     // "securosys-prod"
+	Provider string         `json:"provider"` // "securosyshsm"
+	Config   map[string]any `json:"config"`   // restapi, auth, apiKeys...
 }
 
 type issuerUsage uint
@@ -298,6 +315,164 @@ func (sc *storageContext) listKeysPage(after string, limit int) ([]keyID, error)
 
 	return keyIds, nil
 }
+func (sc *storageContext) initKmsClient(provider string) (kms.KMS, error) {
+	switch provider {
+	case "securosyshsm":
+		return securosyshsm.New(), nil
+	default:
+		return nil, fmt.Errorf("unsupported KMS provider %q", provider)
+	}
+}
+func (sc *storageContext) findKeyByExternalReference(
+	configName string,
+	externalKeyName string,
+) (*keyEntry, error) {
+	keys, err := sc.listKeys()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, keyID := range keys {
+		key, err := sc.fetchKeyById(keyID)
+		if err != nil {
+			return nil, err
+		}
+		if key == nil || key.ExternalKey == nil {
+			continue
+		}
+
+		keyName, _ := externalKeyNameFromRef(key.ExternalKey)
+		if key.ExternalKey.ConfigName == configName &&
+			keyName == externalKeyName {
+			return key, nil
+		}
+	}
+
+	return nil, nil
+}
+func (sc *storageContext) importExternalKeyReference(
+	keyName string,
+	keyType certutil.PrivateKeyType,
+	configName string,
+	options map[string]any,
+) (*keyEntry, bool, error) {
+	if configName == "" {
+		return nil, false, fmt.Errorf("external_config_name is required")
+	}
+	externalKeyName, err := externalKeyNameFromOptions(options)
+	if err != nil {
+		return nil, false, err
+	}
+
+	// Optional: verify config exists
+	config, err := sc.fetchKmsConfigByName(configName)
+	if err != nil {
+		return nil, false, err
+	}
+	if config == nil {
+		return nil, false, fmt.Errorf("external config %q not found", configName)
+	}
+
+	// Optional: deduplicate by external key reference
+	existing, err := sc.findKeyByExternalReference(configName, externalKeyName)
+	if err != nil {
+		return nil, false, err
+	}
+	if existing != nil {
+		return existing, true, nil
+	}
+
+	key := &keyEntry{
+		ID:             genKeyId(),
+		Name:           keyName,
+		PrivateKeyType: keyType,
+		ExternalKey: &externalKeyRef{
+			ConfigName: configName,
+			KeyType:    string(keyType),
+			Options:    options,
+		},
+	}
+
+	if err := sc.writeKey(*key); err != nil {
+		return nil, false, err
+	}
+
+	return key, false, nil
+}
+func (sc *storageContext) resolveKMSKey(ctx context.Context, ref *externalKeyRef) (kms.Key, error) {
+	cfg, err := sc.fetchKmsConfigByName(ref.ConfigName)
+	if err != nil {
+		return nil, err
+	}
+	kmsClient, err := sc.initKmsClient(cfg.Provider)
+	if err != nil {
+		return nil, err
+	}
+	if err := kmsClient.Open(ctx, &kms.OpenOptions{
+		ConfigMap: cfg.Config,
+	}); err != nil {
+		return nil, err
+	}
+
+	return kmsClient.GetKey(ctx, &kms.KeyOptions{
+		ConfigMap: externalKeyConfigMap(ref),
+	})
+}
+
+func externalKeyConfigMap(ref *externalKeyRef) map[string]any {
+	configMap := make(map[string]any, len(ref.Options)+1)
+	for key, value := range ref.Options {
+		configMap[key] = value
+	}
+	if _, ok := configMap["name"]; !ok && ref.KeyName != "" {
+		configMap["name"] = ref.KeyName
+	}
+	return configMap
+}
+
+func externalKeyNameFromRef(ref *externalKeyRef) (string, error) {
+	name, err := externalKeyNameFromOptions(ref.Options)
+	if err == nil {
+		return name, nil
+	}
+	if ref.KeyName != "" {
+		return ref.KeyName, nil
+	}
+	return "", err
+}
+
+func externalKeyNameFromOptions(options map[string]any) (string, error) {
+	rawName, ok := options["name"]
+	if !ok {
+		return "", fmt.Errorf("external_key_options.name is required")
+	}
+	name, ok := rawName.(string)
+	if !ok || name == "" {
+		return "", fmt.Errorf("external_key_options.name must be a non-empty string")
+	}
+	return name, nil
+}
+
+func (sc *storageContext) fetchKmsConfigByName(name string) (*kmsConfigEntry, error) {
+	if len(name) == 0 {
+		return nil, errutil.InternalError{Err: "unable to fetch pki key: empty key identifier"}
+	}
+
+	entry, err := sc.Storage.Get(sc.Context, kmsConfigPrefix+name)
+	if err != nil {
+		return nil, errutil.InternalError{Err: fmt.Sprintf("unable to fetch pki kms config: %v", err)}
+	}
+	if entry == nil {
+		return nil, errutil.UserError{Err: fmt.Sprintf("pki kms config name %s does not exist", name)}
+	}
+
+	var kmsConfig kmsConfigEntry
+	if err := entry.DecodeJSON(&kmsConfig); err != nil {
+		return nil, errutil.InternalError{Err: fmt.Sprintf("unable to decode pki kms config with name %s: %v", name, err)}
+	}
+
+	return &kmsConfig, nil
+}
 
 func (sc *storageContext) fetchKeyById(keyId keyID) (*keyEntry, error) {
 	if len(keyId) == 0 {
@@ -381,7 +556,7 @@ func (sc *storageContext) importKey(keyValue string, keyName string, keyType cer
 		if err != nil {
 			return nil, false, err
 		}
-		areEqual, err := comparePublicKey(existingKey, pkForImportingKey)
+		areEqual, err := comparePublicKey(sc, existingKey, pkForImportingKey)
 		if err != nil {
 			return nil, false, err
 		}
@@ -870,7 +1045,7 @@ func (sc *storageContext) importIssuer(certValue string, issuerName string) (*is
 			return nil, false, err
 		}
 
-		equal, err := comparePublicKey(existingKey, issuerCert.PublicKey)
+		equal, err := comparePublicKey(sc, existingKey, issuerCert.PublicKey)
 		if err != nil {
 			return nil, false, err
 		}
@@ -1230,10 +1405,17 @@ func (sc *storageContext) fetchCertBundleByIssuerId(id issuerID, loadKey bool) (
 	return issuer, &bundle, nil
 }
 
-func (sc *storageContext) writeCaBundle(caBundle *certutil.CertBundle, issuerName string, keyName string) (*issuerEntry, *keyEntry, error) {
-	myKey, _, err := sc.importKey(caBundle.PrivateKey, keyName, caBundle.PrivateKeyType)
-	if err != nil {
-		return nil, nil, err
+func (sc *storageContext) writeCaBundle(caBundle *certutil.CertBundle, issuerName string, keyName string, key *keyEntry) (*issuerEntry, *keyEntry, error) {
+	var myKey *keyEntry = nil
+
+	if key == nil {
+		importedKey, _, err := sc.importKey(caBundle.PrivateKey, keyName, caBundle.PrivateKeyType)
+		if err != nil {
+			return nil, nil, err
+		}
+		myKey = importedKey
+	} else {
+		myKey = key
 	}
 
 	// We may have existing mounts that only contained a key with no certificate yet as a signed CSR
@@ -1482,4 +1664,46 @@ func (sc *storageContext) fetchRevocationInfo(serial string) (*revocationInfo, e
 	}
 
 	return revInfo, nil
+}
+
+func externalConfigPath(name string) string {
+	return kmsConfigPrefix + name
+}
+
+func (sc *storageContext) writeExternalConfig(entry *kmsConfigEntry) error {
+	raw, err := logical.StorageEntryJSON(externalConfigPath(entry.Name), entry)
+	if err != nil {
+		return err
+	}
+	return sc.Storage.Put(sc.Context, raw)
+}
+
+func (sc *storageContext) fetchExternalConfig(name string) (*kmsConfigEntry, error) {
+	entry, err := sc.Storage.Get(sc.Context, externalConfigPath(name))
+	if err != nil || entry == nil {
+		return nil, err
+	}
+
+	var config kmsConfigEntry
+	if err := entry.DecodeJSON(&config); err != nil {
+		return nil, err
+	}
+	return &config, nil
+}
+func (sc *storageContext) fetchListExternalConfigs() ([]string, error) {
+	entry, err := sc.Storage.List(sc.Context, kmsConfigPrefix)
+	if err != nil {
+		return nil, err
+	}
+
+	configList := make([]string, 0, len(entry))
+	for _, el := range entry {
+		configList = append(configList, el)
+	}
+
+	return configList, nil
+}
+
+func (sc *storageContext) deleteExternalConfig(name string) error {
+	return sc.Storage.Delete(sc.Context, externalConfigPath(name))
 }

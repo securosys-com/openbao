@@ -297,7 +297,7 @@ func (c *OperatorGenerateRootCommand) decode(client *api.Client, encoded, otp st
 
 	if encoded == "-" {
 		// Pull our fake stdin if needed
-		stdin := (io.Reader)(os.Stdin)
+		stdin := io.Reader(os.Stdin)
 		if c.testStdin != nil {
 			stdin = c.testStdin
 		}
@@ -395,11 +395,13 @@ func (c *OperatorGenerateRootCommand) provide(client *api.Client, key string, ki
 	if !status.Started {
 		c.UI.Error(wrapAtLength(
 			"No root generation is in progress. Start a root generation by " +
-				"running \"bao operator generate-root -init\"."))
+				"running \"bao operator generate-root -init\".",
+		))
 		c.UI.Warn(wrapAtLength(fmt.Sprintf(
 			"If starting root generation using the OTP method and generating "+
 				"your own OTP, the length of the OTP string needs to be %d "+
-				"characters in length.", status.OTPLength)))
+				"characters in length.", status.OTPLength,
+		)))
 		return 1
 	}
 
@@ -410,7 +412,7 @@ func (c *OperatorGenerateRootCommand) provide(client *api.Client, key string, ki
 		nonce = c.flagNonce
 
 		// Pull our fake stdin if needed
-		stdin := (io.Reader)(os.Stdin)
+		stdin := io.Reader(os.Stdin)
 		if c.testStdin != nil {
 			stdin = c.testStdin
 		}

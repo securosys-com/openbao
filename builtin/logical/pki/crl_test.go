@@ -383,7 +383,7 @@ func TestBackend_Secondary_CRL_Rebuilding(t *testing.T) {
 
 	// Write out the issuer/key to storage without going through the api call as replication would.
 	bundle := genCertBundle(t, b, s)
-	issuer, _, err := sc.writeCaBundle(bundle, "", "")
+	issuer, _, err := sc.writeCaBundle(bundle, "", "", nil)
 	require.NoError(t, err)
 
 	// Just to validate, before we call the invalidate function, make sure our CRL has not been generated
@@ -408,7 +408,7 @@ func TestCrlRebuilder(t *testing.T) {
 
 	// Write out the issuer/key to storage without going through the api call as replication would.
 	bundle := genCertBundle(t, b, s)
-	_, _, err := sc.writeCaBundle(bundle, "", "")
+	_, _, err := sc.writeCaBundle(bundle, "", "", nil)
 	require.NoError(t, err)
 
 	cb := newCRLBuilder(true /* can rebuild and write CRLs */)

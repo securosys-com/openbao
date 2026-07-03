@@ -256,7 +256,13 @@ func (b *backend) pathGetKeyHandler(ctx context.Context, req *logical.Request, d
 		keyTypeParam: string(key.PrivateKeyType),
 	}
 
-	pkForSkid, err := getPublicKeyFromBytes([]byte(key.PrivateKey))
+	if key.ExternalKey != nil {
+		respData["external_config_name"] = key.ExternalKey.ConfigName
+		respData["external_key_type"] = key.ExternalKey.KeyType
+		respData["external_key_options"] = key.ExternalKey.Options
+	}
+
+	pkForSkid, err := getPublicKey(sc, key)
 	if err != nil {
 		return nil, err
 	}

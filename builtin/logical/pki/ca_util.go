@@ -29,14 +29,16 @@ func getGenerationParams(sc *storageContext, data *framework.FieldData) (exporte
 	case "kms":
 	default:
 		errorResp = logical.ErrorResponse(
-			`the "exported" path parameter must be "internal", "existing", exported" or "kms"`)
+			`the "exported" path parameter must be "internal", "existing", exported" or "kms"`,
+		)
 		return exported, format, role, errorResp
 	}
 
 	format = getFormat(data)
 	if format == "" {
 		errorResp = logical.ErrorResponse(
-			`the "format" path parameter must be "pem", "der", or "pem_bundle"`)
+			`the "format" path parameter must be "pem", "der", or "pem_bundle"`,
+		)
 		return exported, format, role, errorResp
 	}
 
@@ -92,7 +94,7 @@ func generateCABundle(sc *storageContext, input *inputBundle, data *certutil.Cre
 			return nil, err
 		}
 
-		return certutil.CreateCertificateWithKeyGenerator(data, randomSource, existingKeyGeneratorFromBytes(keyEntry))
+		return certutil.CreateCertificateWithKeyGenerator(data, randomSource, existingKeyGeneratorFromBytes(sc, keyEntry))
 	}
 
 	return certutil.CreateCertificateWithRandomSource(data, randomSource)
@@ -110,7 +112,7 @@ func generateCSRBundle(sc *storageContext, input *inputBundle, data *certutil.Cr
 			return nil, err
 		}
 
-		return certutil.CreateCSRWithKeyGenerator(data, addBasicConstraints, randomSource, existingKeyGeneratorFromBytes(key))
+		return certutil.CreateCSRWithKeyGenerator(data, addBasicConstraints, randomSource, existingKeyGeneratorFromBytes(sc, key))
 	}
 
 	return certutil.CreateCSRWithRandomSource(data, addBasicConstraints, randomSource)
@@ -164,7 +166,7 @@ func (sc *storageContext) getExistingPublicKey(data *framework.FieldData) (crypt
 	if err != nil {
 		return nil, err
 	}
-	return getPublicKey(key)
+	return getPublicKey(sc, key)
 }
 
 func getKeyTypeAndBitsFromPublicKeyForRole(pubKey crypto.PublicKey) (certutil.PrivateKeyType, int, error) {
@@ -193,9 +195,9 @@ func (sc *storageContext) getExistingKeyFromRef(keyRef string) (*keyEntry, error
 	return sc.fetchKeyById(keyId)
 }
 
-func existingKeyGeneratorFromBytes(key *keyEntry) certutil.KeyGenerator {
+func existingKeyGeneratorFromBytes(sc *storageContext, key *keyEntry) certutil.KeyGenerator {
 	return func(_ string, _ int, container certutil.ParsedPrivateKeyContainer, _ io.Reader) error {
-		signer, _, pemBytes, err := getSignerFromKeyEntryBytes(key)
+		signer, _, pemBytes, err := getSignerFromKeyEntry(sc, key)
 		if err != nil {
 			return err
 		}

@@ -174,6 +174,8 @@ func Backend(conf *logical.BackendConfig) *backend {
 			pathListKeys(&b),
 			pathKey(&b),
 			pathGenerateKey(&b),
+			pathExternalConfig(&b),
+			pathExternalConfigList(&b),
 			pathImportKey(&b),
 			pathConfigKeys(&b),
 

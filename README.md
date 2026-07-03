@@ -13,8 +13,6 @@ This integration is actively maintained by Securosys SA.
 - [Glossary](#glossary)
 - [Setup](#setup)
 
-  - [Environment Variables](#environment-variables)
-
   - [Additional prerequisites for UI](#additional-prerequisites-for-ui)
 
 - [How to build OpenBao](#how-to-build-openbao)
@@ -27,9 +25,9 @@ This integration is actively maintained by Securosys SA.
   - [Developer Mode](#developer-mode)
   - [Production mode](#production-mode)
   - [Auto unseal (securosys-hsm)](#auto-unseal-securosys-hsm)
-  - [Using Shamir Secrets](#using-shamir-secrets)
-  - [OpenBao Server as Docker Image](#openbao-server-as-docker-image)
-- [Example of config.hcl](#example-of-config.hcl)
+  - [Self-initialization with HCL files](#self-initialization-with-hcl-files)
+  - [PKI external keys](#pki-external-keys)
+- [Examples with three HCL files](#examples-with-three-hcl-files)
 - [Getting Support](#getting-support)
 - [License](#license)
 ---
@@ -54,10 +52,6 @@ This integration is actively maintained by Securosys SA.
   - GOPATH default `%USERPROFILE%\go`
   - GOROOT defaults to `%programfiles%`
 
-### Environment Variables
-
-`export BAO_CLIENT_TIMEOUT=2000` This change is necessary, as the HashiCorp Vault default value is too low (60 seconds). The higher value is required for some operations (e.g. rekey) when waiting for an approved response.
-
 ### Additional prerequisites for UI
 
 For the graphical User Interface the following packages must be installed on the machine:
@@ -69,7 +63,7 @@ For the graphical User Interface the following packages must be installed on the
 
 ### Using pre-built releases
 
-You can find pre-built releases of the OpenBao on the Securosys JFrog artifactory. Download the latest binary file, corresponding to your target OS, configuration files, or docker image.
+You can find pre-built releases of the OpenBao on the Securosys JFrog artifactory. Download the latest binary file, corresponding to your target OS, or configuration files.
 
 Further documentation and credentials are available via the [Securosys Support Portal](https://support.securosys.com/external/knowledge-base/article/192) or the Securosys [web-site](https://www.securosys.com/en/openbao).
 
@@ -89,13 +83,10 @@ To build OpenBao with User Interface, run the following commands
 - `make bin`
   The OpenBao executable will be placed in the **bin** directory.
 
-To build a docker image, run the following command
-`make docker VERSION={$VERSION}` where {$VERSION} will be a version of the Securosys OpenBao image.
-
 To build OpenBao executables for different platforms (Windows, MacOS, Linux, FreeBSD, NetBSD and OpenBSD)
 `make release VERSION={$VERSION}` where {$VERSION} will be a version of build.
 
-To build everything, docker image and all executables for all platforms
+To build all executables for all platforms
 `make release-all VERSION={$VERSION}` where {$VERSION} will be a version of build.
 
 ## How to run Vault CE
@@ -121,11 +112,7 @@ To run the server in **production mode** use either of the following commands
 
 Create the directory "**data**" (if it does not already exist).
 
-If the OpenBao server is not yet initialized, then use either of the following commands
-`go run ./main.go operator init -address http://127.0.0.1:8200` or
-`./executable_name operator init -address http://127.0.0.1:8200`
-
-These commands initialize the OpenBao server with default OpenBao encryption.
+For first-start initialization with auto-unseal, use the self-initialization flow described below.
 
 ---
 
@@ -139,166 +126,308 @@ In the configuration file **config.hcl** add the additional seal configuration s
     //Define the unseal key stored on the HSM. Key has to be RSA type and should exists on HSM.
     key_label = "replace-me_key_label"
     //Key password
-    key_password = "password"
+    key_password = "replace-me_key_password"
     //RestApi url for calling requests to Securosys HSM via REST(TSB)
-    tsb_api_endpoint = "replace-me_TSB_Endpoint" //https://rest-api.cloudshsm.com, https://sbx-rest-api.cloudshsm.com, https://primusdev.cloudshsm.com
+    tsb_api_endpoint = "replace-me_tsb_api_endpoint"
     //Define the authorization type (TOKEN, CERT, NONE)
     auth = "TOKEN"
     //auth = TOKEN: define the JWT token to authorize at TSB
-    bearer_token = "replace-me_BearerToken"
+    bearer_token = "replace-me_bearer_token"
     //auth = CERT: mTLS, define the certificate to authorize at TSB
-    //cert_path = "replace-me_with_cert_path"
+    //cert_path = "replace-me_cert_path"
+    //key_path = "replace-me_key_path"
     //Approval checking frequency in seconds
     check_every = 5
     //Wait for user approvals in seconds
-    approval_timeout = 30
+    approval_timeout = 600
   }
 ```
 > **Note:** The configuration section **seal securosys-hsm** is only validated on startup of the ** OpenBao Server**.
 
----
+Auto-unseal timeout settings:
 
-**_Important_**
-After the `operator init` command OpenBao will print the Shamir **Unseal Keys** and the **Initial Root Token**:
-
-```
-Unseal Key 1: <unseal_key>
-...
-Initial Root Token: <root_key>
-```
-
-Note down these values, and store them in a safe place for disaster recovery.
+| Parameter | Default / example | Description |
+| :-- | :-- | :-- |
+| `check_every` | Default/example: `5` seconds | How often OpenBao checks the HSM approval status. Must be greater than `0`. |
+| `approval_timeout` | Default/example: `600` seconds (10 minutes) | Maximum time to wait for HSM approval. Must be greater than `check_every`. |
+| `http_read_timeout` | OpenBao default is `30s`; `2000s` in `config/config.hcl` | Listener read timeout. Increase it for long approval flows. |
+| `http_write_timeout` | OpenBao default is unlimited (`0`); `2000s` in `config/config.hcl` | Listener write timeout. Increase it for long approval flows. |
+| `log_level` | `debug` in `config/autounseal.hcl` | Seal wrapper log verbosity. Use `info` or `warn` for normal operation. |
+| `log_file` | Path in `config/autounseal.hcl` | Optional file for seal wrapper logs. |
 
 ---
 
-#### Using Shamir Secrets
+### Self-initialization with HCL files
 
-> **Note:** This works only with normal **Shamir** secrets. Using **seal "securosys-hsm"** the **OpenBao** is automatically unsealed on startup.
+Self-initialization lets OpenBao initialize itself on first startup and then run declarative bootstrap requests from HCL. It requires auto-unseal, because there is no Shamir key output to persist.
 
-**Unseal** the server with the command
-`vault operator unseal <unseal_key>`
-and write system **env** with root token using this command
-`vault login <root-token>`
+The example files are in `config/`:
 
-Alternatively the [Web UI](http://localhost:8200/ui/) can be used.
+- `config/config.hcl`: storage, listener, API address, UI, and timeout settings.
+- `config/autounseal.hcl`: `seal "securosys-hsm"` configuration.
+- `config/selfinitialization.hcl`: bootstrap requests executed after initialization.
 
-## OpenBao Server as Docker Image
+Start OpenBao with the whole `config/` directory:
 
-Prepare the additional configuration files for the docker image:
-
-### File `docker-compose.yml`:
-
-```yml
-version: "3.3"
-services:
-  run:
-    container_name: securosys_openbao
-    environment:
-      - "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-    volumes:
-      - securosys_openbao_config:/etc/app/config
-      - securosys_openbao_db:/etc/app/db
-      - securosys_openbao_plugins:/etc/app/plugins
-    ports:
-      - "0.0.0.0:8200:8200"
-      - "0.0.0.0:8201:8201"
-    image: securosys.jfrog.io/external-openbao/1.1.1/securosys-openbao:1.1.1.20230918145422
-volumes:
-  securosys_openbao_config:
-    driver: local
-    driver_opts:
-      o: bind
-      type: none
-      # Local absolute path to directory which contains all config files
-      device: ./config/vault
-  securosys_openbao_db:
-    driver: local
-    driver_opts:
-      o: bind
-      type: none
-      # Local absolute path to directory where we want to store database
-      device: ./config/db
-  securosys_openbao_plugins:
-    driver: local
-    driver_opts:
-      o: bind
-      type: none
-      # Local absolute path to directory where are stored custom plugins
-      device: ./config/plugins
+```shell
+bao server \
+  -config=config/
 ```
 
-Where **{$version}** has to be replaced with the current version of the docker image.
+Alternatively, pass each file explicitly:
 
-### File `config.hcl`:
+```shell
+bao server \
+  -config=config/config.hcl \
+  -config=config/autounseal.hcl \
+  -config=config/selfinitialization.hcl
+```
 
-The configuration file differs slightly from the standalone version.
+The `initialize "bootstrap"` block in `config/selfinitialization.hcl` contains ordered `request` blocks. The current example:
+
+- enables the `userpass` auth method,
+- creates an `admin` ACL policy,
+- creates an `admin` user with the `admin` policy.
+
+Example request block:
 
 ```hcl
-//Example of config.hcl for Docker image.
-//Addresses or paths are relative to path and addresses inside docker image
+initialize "bootstrap" {
+  request "enable-userpass" {
+    operation = "update"
+    path      = "sys/auth/userpass"
 
+    data = {
+      type = "userpass"
+    }
+  }
+}
+```
+
+Self-initialization runs only when the storage backend is not initialized yet. On later starts, OpenBao skips the `initialize` block.
+
+---
+
+### PKI external keys
+
+PKI can use an existing signing key stored in Securosys HSM without importing the private key PEM into OpenBao. Register the external provider configuration first, then register the external key reference. After that, use the returned `key_id` or `key_name` as `key_ref` in the standard PKI endpoints.
+
+Enable PKI if it is not mounted yet:
+
+```shell
+bao secrets enable pki
+```
+
+Register the external provider configuration through the HTTP API:
+
+```shell
+curl \
+  --header "X-Vault-Token: replace-me_token" \
+  --request POST \
+  --data @replace-me_external_config.json \
+  replace-me_openbao_addr/v1/pki/keys/external/config/replace-me_external_config_name
+```
+
+Required fields:
+
+- `provider`: external key provider name.
+- `config`: provider-specific connection configuration used to open the HSM/KMS client.
+
+Supported `config.auth` values:
+
+- `TOKEN`: use bearer token authorization. Requires `bearertoken`.
+- `CERT`: use client certificate authorization. Requires `cert_path` and `key_path`.
+- `NONE`: do not send additional authorization data.
+
+Example `replace-me_external_config.json` with token authorization:
+
+```json
+{
+  "provider": "replace-me_provider",
+  "config": {
+    "restapi": "replace-me_tsb_api_endpoint",
+    "auth": "TOKEN",
+    "bearertoken": "replace-me_bearer_token"
+  }
+}
+```
+
+Example `replace-me_external_config.json` with client certificate authorization:
+
+```json
+{
+  "provider": "replace-me_provider",
+  "config": {
+    "restapi": "replace-me_tsb_api_endpoint",
+    "auth": "CERT",
+    "cert_path": "replace-me_cert_path",
+    "key_path": "replace-me_key_path"
+  }
+}
+```
+
+Example `replace-me_external_config.json` without additional authorization:
+
+```json
+{
+  "provider": "replace-me_provider",
+  "config": {
+    "restapi": "replace-me_tsb_api_endpoint",
+    "auth": "NONE"
+  }
+}
+```
+
+Register an existing external key through the HTTP API:
+
+```shell
+curl \
+  --header "X-Vault-Token: replace-me_token" \
+  --request POST \
+  --data '{
+    "key_name": "replace-me_key_name",
+    "key_type": "replace-me_key_type",
+    "external_config_name": "replace-me_external_config_name",
+    "external_key_options": {
+      "name": "replace-me_external_key_name",
+      "password": "replace-me_key_password"
+    }
+  }' \
+  replace-me_openbao_addr/v1/pki/keys/generate/external
+```
+
+Required fields:
+
+- `external_config_name`: name created under `pki/keys/external/config/<name>`.
+- `key_type`: public key type of the external key. Supported values are `rsa`, `ec`, and `ed25519`.
+- `external_key_options.name`: existing key label/name in the external provider.
+
+Optional fields:
+
+- `key_name`: OpenBao-local name for this key reference.
+- additional keys in `external_key_options`: provider-specific key options, such as password or signing parameters.
+
+The response contains `key_id`, `key_name`, and `key_type`. It does not contain `private_key`, because the private key stays in the HSM.
+
+Use the external key with normal PKI flows:
+
+```shell
+curl \
+  --header "X-Vault-Token: replace-me_token" \
+  --request POST \
+  --data '{
+    "key_ref": "replace-me_key_name",
+    "issuer_name": "replace-me_issuer_name",
+    "common_name": "replace-me_common_name",
+    "ttl": "replace-me_ttl"
+  }' \
+  replace-me_openbao_addr/v1/pki/issuers/generate/root/existing
+```
+
+From this point, issuing certificates, signing, CRL, OCSP, roles, and issuer management should work like the existing PKI flow, with `key_ref` pointing to the external key reference.
+
+## Examples with three HCL files
+
+Use three separate config files so base server settings, auto-unseal, and bootstrap requests stay independent.
+
+Start OpenBao with the whole `config/` directory:
+
+```shell
+bao server \
+  -config=config/
+```
+
+Or pass each file explicitly:
+
+```shell
+bao server \
+  -config=config/config.hcl \
+  -config=config/autounseal.hcl \
+  -config=config/selfinitialization.hcl
+```
+
+### `config/config.hcl`
+
+```hcl
 storage "raft" {
-  path = "/etc/app/db" //Do not change this path
-  node_id = "raft_node"
+  path    = "./db"
+  node_id = "raft_node_1"
 }
 
 listener "tcp" {
-  address     = "0.0.0.0:8200" //Do not change this path
+  address     = "127.0.0.1:8200"
   tls_disable = 1
+
+  http_read_timeout  = "2000s"
+  http_write_timeout = "2000s"
 }
 
-disable_mlock=true
-plugin_directory="/etc/app/plugins" //Do not change this path
-api_addr = "http://0.0.0.0:8200" //Do not change this addr
-cluster_addr = "https://127.0.0.1:8201" //Do not change this addr
-ui = true
-
-//Add below the config section seal "securosys-hsm" as shown in the auto-unseal chapter
+api_addr     = "http://127.0.0.1:8200"
+cluster_addr = "https://127.0.0.1:8201"
+ui           = true
 ```
 
-## Example of config.hcl
+### `config/autounseal.hcl`
 
 ```hcl
-//Example of config.hcl for Docker image.
-//Addresses or paths are relative to path and addresses inside docker image
-
-storage "raft" {
-  path = "/etc/app/db" //Do not change this path
-  node_id = "raft_node"
-}
-
-listener "tcp" {
-  address     = "0.0.0.0:8200" //Do not change this path
-  tls_disable = 1
-}
-
-disable_mlock=true
-plugin_directory="/etc/app/plugins" //Do not change this path
-api_addr = "http://0.0.0.0:8200" //Do not change this addr
-cluster_addr = "https://127.0.0.1:8201" //Do not change this addr
-ui = true
+plugin_directory = "./plugins"
 
 seal "securosys-hsm" {
-  //Define the unseal key stored on the HSM. Key has to be RSA type and should exists on HSM.
-  key_label = "replace-me_key_label"
-  //Key password
-  key_password = "password"
-  //RestApi url for calling requests to Securosys HSM via REST(TSB)
-  tsb_api_endpoint = "replace-me_TSB_Endpoint" //https://rest-api.cloudshsm.com, https://sbx-rest-api.cloudshsm.com, https://primusdev.cloudshsm.com
-  //Define the authorization type (TOKEN, CERT, NONE).
-  auth = "TOKEN"
-  //auth = TOKEN: define the JWT token to authorize at TSB
-  bearer_token = "replace-me_BearerToken"
-  //auth = CERT: mTLS, define the certificate to authorize at TSB
-  cert_path = "replace-me_with_cert_path"
-  key_path = "replace-me_with_key_path"
-  //Approval checking frequency in seconds.
-  check_every = 5
-  //Wait for user approvals in seconds.
-  approval_timeout = 30
+  log_file         = "replace-me_log_file"
+  log_level        = "debug"
+  key_label        = "replace-me_key_label"
+  key_password     = "replace-me_key_password"
+  tsb_api_endpoint = "replace-me_tsb_api_endpoint"
 
+  # Authorization type: TOKEN, CERT, or NONE.
+  auth         = "TOKEN"
+  bearer_token = "replace-me_bearer_token"
+  # cert_path = "replace-me_cert_path"
+  # key_path  = "replace-me_key_path"
+
+  check_every      = 5
+  approval_timeout = 600
 }
 ```
+
+### `config/selfinitialization.hcl`
+
+```hcl
+initialize "bootstrap" {
+  request "enable-userpass" {
+    operation = "update"
+    path      = "sys/auth/userpass"
+
+    data = {
+      type = "userpass"
+    }
+  }
+
+  request "create-admin-policy" {
+    operation = "update"
+    path      = "sys/policies/acl/admin"
+
+    data = {
+      policy = <<EOT
+path "*" {
+  capabilities = ["create", "read", "update", "delete", "list", "sudo"]
+}
+EOT
+    }
+  }
+
+  request "create-admin-user" {
+    operation = "update"
+    path      = "auth/userpass/users/admin"
+
+    data = {
+      password = "replace-me_admin_password"
+      policies = ["admin"]
+    }
+  }
+}
+```
+
 ## Getting Support
 **Community Support for Securosys open source software:**
 In our Community we welcome contributions. The Community software is open source and community supported, there is no support SLA, but a helpful best-effort Community.

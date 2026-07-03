@@ -261,16 +261,23 @@ func (b *backend) pathCAGenerateRoot(ctx context.Context, req *logical.Request, 
 	default:
 		return nil, fmt.Errorf("unsupported format argument: %s", format)
 	}
-
-	if data.Get("private_key_format").(string) == "pkcs8" {
+	if privateKey, ok := resp.Data["private_key"]; ok &&
+		privateKey != "" &&
+		data.Get("private_key_format").(string) == "pkcs8" {
 		err = convertRespToPKCS8(resp)
 		if err != nil {
 			return nil, err
 		}
 	}
+	var keyEntry *keyEntry // replace with your actual type
 
+	if keyRef, ok := data.Get("key_ref").(string); ok && keyRef != "" {
+		keyEntry, err = sc.fetchKeyById(keyID(keyRef))
+	} else {
+
+	}
+	myIssuer, myKey, err := sc.writeCaBundle(cb, issuerName, keyName, keyEntry)
 	// Store it as the CA bundle
-	myIssuer, myKey, err := sc.writeCaBundle(cb, issuerName, keyName)
 	if err != nil {
 		return nil, err
 	}
@@ -401,10 +408,12 @@ func (b *backend) pathIssuerSignIntermediate(ctx context.Context, req *logical.R
 		switch caErr.(type) {
 		case errutil.UserError:
 			return nil, errutil.UserError{Err: fmt.Sprintf(
-				"could not fetch the CA certificate (was one set?): %s", caErr)}
+				"could not fetch the CA certificate (was one set?): %s", caErr,
+			)}
 		default:
 			return nil, errutil.InternalError{Err: fmt.Sprintf(
-				"error fetching CA certificate: %s", caErr)}
+				"error fetching CA certificate: %s", caErr,
+			)}
 		}
 	}
 
@@ -433,7 +442,8 @@ func (b *backend) pathIssuerSignIntermediate(ctx context.Context, req *logical.R
 			return logical.ErrorResponse(err.Error()), nil
 		default:
 			return nil, errutil.InternalError{Err: fmt.Sprintf(
-				"error signing cert: %s", err)}
+				"error signing cert: %s", err,
+			)}
 		}
 	}
 
@@ -566,7 +576,8 @@ func (b *backend) pathIssuerSignSelfIssued(ctx context.Context, req *logical.Req
 		switch caErr.(type) {
 		case errutil.UserError:
 			return nil, errutil.UserError{Err: fmt.Sprintf(
-				"could not fetch the CA certificate (was one set?): %s", caErr)}
+				"could not fetch the CA certificate (was one set?): %s", caErr,
+			)}
 		default:
 			return nil, errutil.InternalError{Err: fmt.Sprintf("error fetching CA certificate: %s", caErr)}
 		}

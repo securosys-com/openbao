@@ -1,8 +1,8 @@
 ---
 sidebar_label: rotate-keys
 description: |-
-  The "operator rotate-keys" command generates a new set of unseal keys. 
-  This can optionally change the total number of key shares or the required 
+  The "operator rotate-keys" command generates a new set of unseal keys.
+  This can optionally change the total number of key shares or the required
   threshold to reconstruct the root key. The rotation does not introduce
   downtime, but it requires the OpenBao instance to be unsealed and a quorum
   of existing unseal keys to be provided.
@@ -16,8 +16,8 @@ The `operator rotate-keys` command is available from version `v2.4.0`.
 
 :::
 
-The `operator rotate-keys` command generates a new set of unseal keys. 
-This can optionally change the total number of key shares or the required 
+The `operator rotate-keys` command generates a new set of unseal keys.
+This can optionally change the total number of key shares or the required
 threshold to reconstruct the root key. The rotation does not introduce
 downtime, but it requires the OpenBao instance to be unsealed and a quorum
 of existing unseal keys to be provided.
@@ -105,6 +105,12 @@ Perform the verification of the rotation using the verification nonce:
 $ bao operator rotate-keys -verify -nonce="..."
 ```
 
+Perform a rotation on a sealable namespace:
+
+```shell-session
+$ bao operator rotate-keys -ns=tenants/my-tenant -init
+```
+
 ## Usage
 
 The following flags are available in addition to the [standard set of
@@ -150,6 +156,8 @@ flags](../index.mdx) included on all commands.
 - `-verify` `(bool: false)` - Indicate during the phase `-init` that the
   verification process is activated for the rotation. Along with `-nonce` option
   it indicates that the nonce given is for the verification process.
+
+- `-namespace` `(string: "")` - Sealable namespace to rotate the unseal key for. Defaults to the root namespace.
 
 ### Backup options
 

@@ -19,6 +19,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	wrapping "github.com/openbao/go-kms-wrapping/v2"
+	"github.com/openbao/go-kms-wrapping/wrappers/securosyshsm/v2"
 	"github.com/openbao/openbao/sdk/v2/physical"
 	"github.com/openbao/openbao/vault/barrier"
 	"github.com/openbao/openbao/vault/seal"
@@ -209,9 +210,7 @@ func (d *autoSeal) BarrierConfig(ctx context.Context) (*SealConfig, error) {
 
 	// If the seal configuration is missing, we are not initialized
 	if valueBytes == nil {
-		if d.logger.IsInfo() {
-			d.logger.Info("seal configuration missing, not initialized", "seal_type", sealType)
-		}
+		d.logger.Info("seal configuration missing, not initialized", "seal_type", sealType)
 		return nil, nil
 	}
 
@@ -476,7 +475,7 @@ func (d *autoSeal) StartHealthCheck() {
 	healthCheck := time.NewTicker(sealHealthTestIntervalNominal)
 	d.healthCheckStop = make(chan struct{})
 	healthCheckStop := d.healthCheckStop
-	ctx := d.core.activeContext
+	ctx := d.core.activeContext.Load()
 
 	go func() {
 		lastTestOk := true
@@ -504,7 +503,7 @@ func (d *autoSeal) StartHealthCheck() {
 					defer cancel()
 
 					name, err := d.Access.Type(ctx)
-					if name == wrapping.WrapperTypeSecurosysHsm {
+					if name == securosyshsm.Type {
 						if err == nil {
 							if !lastTestOk {
 								d.logger.Info("seal backend is now healthy again", "downtime", t.Sub(lastSeenOk).String())
