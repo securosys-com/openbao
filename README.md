@@ -126,7 +126,7 @@ In the configuration file **config.hcl** add the additional seal configuration s
     key_label = "replace-me_key_label"
     //Key password
     key_password = "replace-me_key_password"
-    //RestApi url for calling requests to Securosys HSM via REST(TSB)
+    //TSB API endpoint for REST requests to Securosys HSM
     tsb_api_endpoint = "replace-me_tsb_api_endpoint"
     //Define the authorization type (TOKEN, CERT, NONE)
     auth = "TOKEN"
@@ -135,21 +135,21 @@ In the configuration file **config.hcl** add the additional seal configuration s
     //auth = CERT: mTLS, define the certificate to authorize at TSB
     //cert_path = "replace-me_cert_path"
     //key_path = "replace-me_key_path"
-    //Optional application key pair used for request signing.
+    //Optional application_key_pair used for request signing.
     application_key_pair = <<EOT
 {
-  "privateKey": "replace-me_application_private_key",
-  "publicKey": "replace-me_application_public_key"
+  "private_key": "replace-me_application_private_key",
+  "public_key": "replace-me_application_public_key"
 }
 EOT
-    //Optional API keys used by TSB.
+    //Optional api_keys used by TSB.
     api_keys = <<EOT
 {
-  "KeyManagementToken": ["replace-me_key_management_token"],
-  "KeyOperationToken": ["replace-me_key_operation_token"],
-  "ApproverToken": ["replace-me_approver_token"],
-  "ServiceToken": ["replace-me_service_token"],
-  "ApproverKeyManagementToken": ["replace-me_approver_key_management_token"]
+  "key_management_token": ["replace-me_key_management_token"],
+  "key_operation_token": ["replace-me_key_operation_token"],
+  "approver_token": ["replace-me_approver_token"],
+  "service_token": ["replace-me_service_token"],
+  "approver_key_management_token": ["replace-me_approver_key_management_token"]
 }
 EOT
     //Approval checking frequency in seconds
@@ -174,8 +174,8 @@ Optional auto-unseal credentials:
 
 | Parameter | Format | Description |
 | :-- | :-- | :-- |
-| `application_key_pair` | JSON string with `privateKey` and `publicKey` | Application key pair used by TSB request signing. The key values should be PEM body/base64 content without header/footer lines. |
-| `api_keys` | JSON string with token arrays | API keys used by TSB. Supported arrays are `KeyManagementToken`, `KeyOperationToken`, `ApproverToken`, `ServiceToken`, and `ApproverKeyManagementToken`. |
+| `application_key_pair` | JSON string with `private_key` and `public_key` | Application key pair used by TSB request signing. |
+| `api_keys` | JSON string with token arrays | API keys used by TSB. Supported arrays are `key_management_token`, `key_operation_token`, `approver_token`, `service_token`, and `approver_key_management_token`. |
 
 ---
 
@@ -261,7 +261,9 @@ Supported `config.auth` values:
 - `CERT`: use client certificate authorization. Requires `cert_path` and `key_path`.
 - `NONE`: do not send additional authorization data.
 
-Optional config fields are provider-specific. For `securosys-hsm`, use `snake_case` names such as `rest_api`, `bearer_token`, `cert_path`, `key_path`, `application_key_pair`, and `api_keys`.
+Optional config fields are provider-specific. For `securosys-hsm`, the PKI REST API uses `snake_case` field names such as `rest_api`, `bearer_token`, `cert_path`, `key_path`, `application_key_pair`, and `api_keys`.
+
+Use these `snake_case` names in the PKI REST API payload. The PKI module translates them internally before opening the KMS client.
 
 Example `replace-me_external_config.json` with token authorization:
 
@@ -275,6 +277,23 @@ Example `replace-me_external_config.json` with token authorization:
   }
 }
 ```
+
+Example `replace-me_external_config.json` with token authorization, application key pair, and API keys:
+
+```json
+{
+  "provider": "replace-me_provider",
+  "config": {
+    "rest_api": "replace-me_tsb_api_endpoint",
+    "auth": "TOKEN",
+    "bearer_token": "replace-me_bearer_token",
+    "application_key_pair": "{\"private_key\":\"replace-me_application_private_key\",\"public_key\":\"replace-me_application_public_key\"}",
+    "api_keys": "{\"key_management_token\":[\"replace-me_key_management_token\"],\"key_operation_token\":[\"replace-me_key_operation_token\"],\"approver_token\":[\"replace-me_approver_token\"],\"service_token\":[\"replace-me_service_token\"],\"approver_key_management_token\":[\"replace-me_approver_key_management_token\"]}"
+  }
+}
+```
+
+In this example, `application_key_pair` and `api_keys` are OpenBao config fields and therefore use `snake_case`. Their values are JSON strings passed to the TSB client and also use `snake_case`.
 
 Example `replace-me_external_config.json` with client certificate authorization:
 
@@ -409,18 +428,18 @@ seal "securosys-hsm" {
 
   application_key_pair = <<EOT
 {
-  "privateKey": "replace-me_application_private_key",
-  "publicKey": "replace-me_application_public_key"
+  "private_key": "replace-me_application_private_key",
+  "public_key": "replace-me_application_public_key"
 }
 EOT
 
   api_keys = <<EOT
 {
-  "KeyManagementToken": ["replace-me_key_management_token"],
-  "KeyOperationToken": ["replace-me_key_operation_token"],
-  "ApproverToken": ["replace-me_approver_token"],
-  "ServiceToken": ["replace-me_service_token"],
-  "ApproverKeyManagementToken": ["replace-me_approver_key_management_token"]
+  "key_management_token": ["replace-me_key_management_token"],
+  "key_operation_token": ["replace-me_key_operation_token"],
+  "approver_token": ["replace-me_approver_token"],
+  "service_token": ["replace-me_service_token"],
+  "approver_key_management_token": ["replace-me_approver_key_management_token"]
 }
 EOT
 

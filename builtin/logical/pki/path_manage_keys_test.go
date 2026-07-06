@@ -250,16 +250,38 @@ func TestPKI_PathManageKeys_ExternalKMSConfigUsesSnakeCase(t *testing.T) {
 
 	configMap := externalKMSConfigMap("securosys-hsm", config)
 
-	require.Equal(t, "replace-me_tsb_api_endpoint", configMap["restapi"])
-	require.Equal(t, "replace-me_bearer_token", configMap["bearertoken"])
-	require.Equal(t, "replace-me_cert_path", configMap["certpath"])
-	require.Equal(t, "replace-me_key_path", configMap["keypath"])
-	require.Equal(t, "replace-me_application_key_pair", configMap["applicationKeyPair"])
-	require.Equal(t, "replace-me_api_keys", configMap["apiKeys"])
+	require.Equal(t, "replace-me_tsb_api_endpoint", configMap["rest_api"])
+	require.Equal(t, "replace-me_bearer_token", configMap["bearer_token"])
+	require.Equal(t, "replace-me_cert_path", configMap["cert_path"])
+	require.Equal(t, "replace-me_key_path", configMap["key_path"])
+	require.Equal(t, "replace-me_application_key_pair", configMap["application_key_pair"])
+	require.Equal(t, "replace-me_api_keys", configMap["api_keys"])
 	require.NotContains(t, config, "restapi")
 	require.NotContains(t, config, "bearertoken")
 	require.NotContains(t, config, "applicationKeyPair")
 	require.NotContains(t, config, "apiKeys")
+}
+
+func TestPKI_PathManageKeys_ExternalKMSConfigSupportsLegacyNames(t *testing.T) {
+	t.Parallel()
+
+	config := map[string]any{
+		"restapi":            "replace-me_tsb_api_endpoint",
+		"bearertoken":        "replace-me_bearer_token",
+		"certpath":           "replace-me_cert_path",
+		"keypath":            "replace-me_key_path",
+		"applicationKeyPair": "replace-me_application_key_pair",
+		"apiKeys":            "replace-me_api_keys",
+	}
+
+	configMap := externalKMSConfigMap("securosys-hsm", config)
+
+	require.Equal(t, "replace-me_tsb_api_endpoint", configMap["rest_api"])
+	require.Equal(t, "replace-me_bearer_token", configMap["bearer_token"])
+	require.Equal(t, "replace-me_cert_path", configMap["cert_path"])
+	require.Equal(t, "replace-me_key_path", configMap["key_path"])
+	require.Equal(t, "replace-me_application_key_pair", configMap["application_key_pair"])
+	require.Equal(t, "replace-me_api_keys", configMap["api_keys"])
 }
 
 func TestPKI_PathManageKeys_ImportKeyBundle(t *testing.T) {

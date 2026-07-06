@@ -428,23 +428,26 @@ func externalKMSConfigMap(provider string, config map[string]any) map[string]any
 
 	switch provider {
 	case "securosys-hsm":
-		copyConfigAlias(configMap, "rest_api", "restapi")
-		copyConfigAlias(configMap, "bearer_token", "bearertoken")
-		copyConfigAlias(configMap, "cert_path", "certpath")
-		copyConfigAlias(configMap, "key_path", "keypath")
-		copyConfigAlias(configMap, "application_key_pair", "applicationKeyPair")
-		copyConfigAlias(configMap, "api_keys", "apiKeys")
+		copyLegacyConfigAlias(configMap, "restapi", "rest_api")
+		copyLegacyConfigAlias(configMap, "bearertoken", "bearer_token")
+		copyLegacyConfigAlias(configMap, "certpath", "cert_path")
+		copyLegacyConfigAlias(configMap, "keypath", "key_path")
+		copyLegacyConfigAlias(configMap, "applicationKeyPair", "application_key_pair")
+		copyLegacyConfigAlias(configMap, "apiKeys", "api_keys")
 	}
 
 	return configMap
 }
 
-func copyConfigAlias(configMap map[string]any, snakeCaseKey string, providerKey string) {
-	value, ok := configMap[snakeCaseKey]
+func copyLegacyConfigAlias(configMap map[string]any, legacyKey string, snakeCaseKey string) {
+	if _, ok := configMap[snakeCaseKey]; ok {
+		return
+	}
+	value, ok := configMap[legacyKey]
 	if !ok {
 		return
 	}
-	configMap[providerKey] = value
+	configMap[snakeCaseKey] = value
 }
 
 func externalKeyConfigMap(ref *externalKeyRef) map[string]any {
