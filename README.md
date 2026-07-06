@@ -135,6 +135,23 @@ In the configuration file **config.hcl** add the additional seal configuration s
     //auth = CERT: mTLS, define the certificate to authorize at TSB
     //cert_path = "replace-me_cert_path"
     //key_path = "replace-me_key_path"
+    //Optional application key pair used for request signing.
+    application_key_pair = <<EOT
+{
+  "privateKey": "replace-me_application_private_key",
+  "publicKey": "replace-me_application_public_key"
+}
+EOT
+    //Optional API keys used by TSB.
+    api_keys = <<EOT
+{
+  "KeyManagementToken": ["replace-me_key_management_token"],
+  "KeyOperationToken": ["replace-me_key_operation_token"],
+  "ApproverToken": ["replace-me_approver_token"],
+  "ServiceToken": ["replace-me_service_token"],
+  "ApproverKeyManagementToken": ["replace-me_approver_key_management_token"]
+}
+EOT
     //Approval checking frequency in seconds
     check_every = 5
     //Wait for user approvals in seconds
@@ -152,6 +169,13 @@ Auto-unseal timeout settings:
 | `approval_timeout`   | Default/example: `600` seconds (10 minutes)                        | Maximum time to wait for HSM approval. Must be greater than `check_every`.  |
 | `http_read_timeout`  | OpenBao default is `30s`; `2000s` in `config/config.hcl`           | Listener read timeout. Increase it for long approval flows.                 |
 | `http_write_timeout` | OpenBao default is unlimited (`0`); `2000s` in `config/config.hcl` | Listener write timeout. Increase it for long approval flows.                |
+
+Optional auto-unseal credentials:
+
+| Parameter | Format | Description |
+| :-- | :-- | :-- |
+| `application_key_pair` | JSON string with `privateKey` and `publicKey` | Application key pair used by TSB request signing. The key values should be PEM body/base64 content without header/footer lines. |
+| `api_keys` | JSON string with token arrays | API keys used by TSB. Supported arrays are `KeyManagementToken`, `KeyOperationToken`, `ApproverToken`, `ServiceToken`, and `ApproverKeyManagementToken`. |
 
 ---
 
@@ -380,6 +404,23 @@ seal "securosys-hsm" {
   bearer_token = "replace-me_bearer_token"
   # cert_path = "replace-me_cert_path"
   # key_path  = "replace-me_key_path"
+
+  application_key_pair = <<EOT
+{
+  "privateKey": "replace-me_application_private_key",
+  "publicKey": "replace-me_application_public_key"
+}
+EOT
+
+  api_keys = <<EOT
+{
+  "KeyManagementToken": ["replace-me_key_management_token"],
+  "KeyOperationToken": ["replace-me_key_operation_token"],
+  "ApproverToken": ["replace-me_approver_token"],
+  "ServiceToken": ["replace-me_service_token"],
+  "ApproverKeyManagementToken": ["replace-me_approver_key_management_token"]
+}
+EOT
 
   check_every      = 5
   approval_timeout = 600
