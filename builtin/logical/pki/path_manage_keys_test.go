@@ -235,6 +235,33 @@ func TestPKI_PathManageKeys_GenerateExternalKeyReference(t *testing.T) {
 	require.True(t, resp.IsError(), "expected duplicate external key reference to return an error")
 }
 
+func TestPKI_PathManageKeys_ExternalKMSConfigUsesSnakeCase(t *testing.T) {
+	t.Parallel()
+
+	config := map[string]any{
+		"rest_api":             "replace-me_tsb_api_endpoint",
+		"auth":                 "TOKEN",
+		"bearer_token":         "replace-me_bearer_token",
+		"cert_path":            "replace-me_cert_path",
+		"key_path":             "replace-me_key_path",
+		"application_key_pair": "replace-me_application_key_pair",
+		"api_keys":             "replace-me_api_keys",
+	}
+
+	configMap := externalKMSConfigMap("securosys-hsm", config)
+
+	require.Equal(t, "replace-me_tsb_api_endpoint", configMap["restapi"])
+	require.Equal(t, "replace-me_bearer_token", configMap["bearertoken"])
+	require.Equal(t, "replace-me_cert_path", configMap["certpath"])
+	require.Equal(t, "replace-me_key_path", configMap["keypath"])
+	require.Equal(t, "replace-me_application_key_pair", configMap["applicationKeyPair"])
+	require.Equal(t, "replace-me_api_keys", configMap["apiKeys"])
+	require.NotContains(t, config, "restapi")
+	require.NotContains(t, config, "bearertoken")
+	require.NotContains(t, config, "applicationKeyPair")
+	require.NotContains(t, config, "apiKeys")
+}
+
 func TestPKI_PathManageKeys_ImportKeyBundle(t *testing.T) {
 	t.Parallel()
 	b, s := CreateBackendWithStorage(t)

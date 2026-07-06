@@ -23,11 +23,11 @@ replace github.com/openbao/openbao/sdk/v2 => ./sdk
 
 replace github.com/boltdb/bolt => ./helper/stubbolt
 
-replace github.com/openbao/go-kms-wrapping/v2 => github.com/securosys-com/go-kms-wrapping/v2 v2.0.0-20260703113214-96a1ac8b661e
+replace github.com/openbao/go-kms-wrapping/v2 => github.com/securosys-com/go-kms-wrapping/v2 v2.0.0-20260706151009-b77598feef53
 
-replace github.com/openbao/go-kms-wrapping/wrappers/securosyshsm/v2 => github.com/securosys-com/go-kms-wrapping/wrappers/securosyshsm/v2 v2.0.0-20260703113214-96a1ac8b661e
+replace github.com/openbao/go-kms-wrapping/wrappers/securosyshsm/v2 => github.com/securosys-com/go-kms-wrapping/wrappers/securosyshsm/v2 v2.0.0-20260706151009-b77598feef53
 
-replace github.com/openbao/go-kms-wrapping/kms/securosyshsm/v2 => github.com/securosys-com/go-kms-wrapping/kms/securosyshsm/v2 v2.0.0-20260703113214-96a1ac8b661e
+replace github.com/openbao/go-kms-wrapping/kms/securosyshsm/v2 => github.com/securosys-com/go-kms-wrapping/kms/securosyshsm/v2 v2.0.0-20260706151009-b77598feef53
 
 require (
 	cloud.google.com/go/monitoring v1.29.0
@@ -309,7 +309,7 @@ require (
 	github.com/prometheus/procfs v0.16.1 // indirect
 	github.com/renier/xmlrpc v0.0.0-20170708154548-ce4a1a486c03 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
-	github.com/securosys-com/tsb-client-go v1.0.0 // indirect
+	github.com/securosys-com/tsb-client-go v1.0.1 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/softlayer/softlayer-go v0.0.0-20180806151055-260589d94c7d // indirect

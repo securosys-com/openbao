@@ -352,7 +352,7 @@ func pathExternalConfig(b *backend) *framework.Path {
 			},
 			"provider": {
 				Type:        framework.TypeString,
-				Description: "External key provider type, e.g. securosyshsm.",
+				Description: "External key provider type, e.g. securosys-hsm.",
 			},
 			"config": {
 				Type:        framework.TypeMap,
@@ -458,8 +458,9 @@ func (b *backend) pathExternalConfigWrite(
 	if err != nil {
 		return nil, err
 	}
+	configMap := externalKMSConfigMap(entry.Provider, entry.Config)
 	if err := kmsClient.Open(ctx, &kms.OpenOptions{
-		ConfigMap: entry.Config,
+		ConfigMap: configMap,
 	}); err != nil {
 		return nil, err
 	}

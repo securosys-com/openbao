@@ -252,14 +252,16 @@ curl \
 
 Required fields:
 
-- `provider`: external key provider name. Supports (securosys-hsm)
+- `provider`: external key provider name. Supports `securosys-hsm`.
 - `config`: provider-specific connection configuration used to open the HSM/KMS client.
 
 Supported `config.auth` values:
 
-- `TOKEN`: use bearer token authorization. Requires `bearertoken`.
+- `TOKEN`: use bearer token authorization. Requires `bearer_token`.
 - `CERT`: use client certificate authorization. Requires `cert_path` and `key_path`.
 - `NONE`: do not send additional authorization data.
+
+Optional config fields are provider-specific. For `securosys-hsm`, use `snake_case` names such as `rest_api`, `bearer_token`, `cert_path`, `key_path`, `application_key_pair`, and `api_keys`.
 
 Example `replace-me_external_config.json` with token authorization:
 
@@ -267,9 +269,9 @@ Example `replace-me_external_config.json` with token authorization:
 {
   "provider": "replace-me_provider",
   "config": {
-    "restapi": "replace-me_tsb_api_endpoint",
+    "rest_api": "replace-me_tsb_api_endpoint",
     "auth": "TOKEN",
-    "bearertoken": "replace-me_bearer_token"
+    "bearer_token": "replace-me_bearer_token"
   }
 }
 ```
@@ -280,7 +282,7 @@ Example `replace-me_external_config.json` with client certificate authorization:
 {
   "provider": "replace-me_provider",
   "config": {
-    "restapi": "replace-me_tsb_api_endpoint",
+    "rest_api": "replace-me_tsb_api_endpoint",
     "auth": "CERT",
     "cert_path": "replace-me_cert_path",
     "key_path": "replace-me_key_path"
@@ -294,7 +296,7 @@ Example `replace-me_external_config.json` without additional authorization:
 {
   "provider": "replace-me_provider",
   "config": {
-    "restapi": "replace-me_tsb_api_endpoint",
+    "rest_api": "replace-me_tsb_api_endpoint",
     "auth": "NONE"
   }
 }

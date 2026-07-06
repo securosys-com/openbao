@@ -89,9 +89,9 @@ type externalKeyRef struct {
 	Options    map[string]any `json:"options,omitempty"`
 }
 type kmsConfigEntry struct {
-	Name     string         `json:"name"`     // "securosys-prod"
-	Provider string         `json:"provider"` // "securosyshsm"
-	Config   map[string]any `json:"config"`   // restapi, auth, apiKeys...
+	Name     string         `json:"name"`
+	Provider string         `json:"provider"` // "securosys-hsm"
+	Config   map[string]any `json:"config"`   // rest_api, auth, api_keys...
 }
 
 type issuerUsage uint
@@ -408,8 +408,9 @@ func (sc *storageContext) resolveKMSKey(ctx context.Context, ref *externalKeyRef
 	if err != nil {
 		return nil, err
 	}
+	configMap := externalKMSConfigMap(cfg.Provider, cfg.Config)
 	if err := kmsClient.Open(ctx, &kms.OpenOptions{
-		ConfigMap: cfg.Config,
+		ConfigMap: configMap,
 	}); err != nil {
 		return nil, err
 	}
@@ -417,6 +418,33 @@ func (sc *storageContext) resolveKMSKey(ctx context.Context, ref *externalKeyRef
 	return kmsClient.GetKey(ctx, &kms.KeyOptions{
 		ConfigMap: externalKeyConfigMap(ref),
 	})
+}
+
+func externalKMSConfigMap(provider string, config map[string]any) map[string]any {
+	configMap := make(map[string]any, len(config))
+	for key, value := range config {
+		configMap[key] = value
+	}
+
+	switch provider {
+	case "securosys-hsm":
+		copyConfigAlias(configMap, "rest_api", "restapi")
+		copyConfigAlias(configMap, "bearer_token", "bearertoken")
+		copyConfigAlias(configMap, "cert_path", "certpath")
+		copyConfigAlias(configMap, "key_path", "keypath")
+		copyConfigAlias(configMap, "application_key_pair", "applicationKeyPair")
+		copyConfigAlias(configMap, "api_keys", "apiKeys")
+	}
+
+	return configMap
+}
+
+func copyConfigAlias(configMap map[string]any, snakeCaseKey string, providerKey string) {
+	value, ok := configMap[snakeCaseKey]
+	if !ok {
+		return
+	}
+	configMap[providerKey] = value
 }
 
 func externalKeyConfigMap(ref *externalKeyRef) map[string]any {
