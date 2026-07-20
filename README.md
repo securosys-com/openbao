@@ -45,7 +45,16 @@ This integration is actively maintained by Securosys SA.
 
 ## Setup
 
-> **Prerequisites:** Install Golang 1.21.2 ([download](https://go.dev/dl/))
+> **Prerequisites:** Install Go 1.27 or newer ([download](https://go.dev/dl/)).
+> PKI ML-DSA support uses the Go 1.27 `crypto/mldsa` and `crypto/x509` ML-DSA APIs, so this project will not compile with Go 1.26 or older.
+
+If you are using a Go 1.27 release candidate, install and download it first:
+
+```shell
+go install golang.org/dl/go1.27rc2@latest
+go1.27rc2 download
+go1.27rc2 version
+```
 
 - On Windows : Add GOPATH and GOROOT manually to the system environment and restart your console.
   - GOPATH default `%USERPROFILE%\go`
@@ -70,11 +79,28 @@ Further documentation and credentials are available via the [Securosys Support P
 
 There are multiple ways to build and run the OpenBao application.
 
-To build OpenBao run either
-`go build -o [executable_name]`
-or use the command `make bin`
+To build OpenBao with Go 1.27 run either:
+
+```shell
+go build -o [executable_name] ./main.go
+```
+
+or use:
+
+```shell
+make bin
+```
+
 This will build it using the **Make file** configuration.
 The OpenBao executable will be placed in the **bin** directory.
+
+When using `make bin`, make sure the `go` binary in `PATH` is Go 1.27 or newer. The Makefile invokes `go` directly, so a system default Go 1.26 or older will fail to compile the ML-DSA PKI code.
+
+When using Go 1.27 RC2 without replacing the default `go` binary, build directly with:
+
+```shell
+go1.27rc2 build -o bin/bao ./main.go
+```
 
 To build OpenBao with User Interface, run the following commands
 
@@ -234,6 +260,8 @@ Self-initialization runs only when the storage backend is not initialized yet. O
 
 PKI can use an existing signing key stored in Securosys HSM without importing the private key PEM into OpenBao. Register the external provider configuration first, then register the external key reference. After that, use the returned `key_id` or `key_name` as `key_ref` in the standard PKI endpoints.
 
+PKI supports RSA, EC, Ed25519, and ML-DSA keys. ML-DSA support requires Go 1.27 at build time and supports ML-DSA parameter sets `44`, `65`, and `87`.
+
 Enable PKI if it is not mounted yet:
 
 ```shell
@@ -329,7 +357,6 @@ curl \
   --request POST \
   --data '{
     "key_name": "replace-me_key_name",
-    "key_type": "replace-me_key_type",
     "external_config_name": "replace-me_external_config_name",
     "external_key_options": {
       "name": "replace-me_external_key_name",
@@ -342,15 +369,17 @@ curl \
 Required fields:
 
 - `external_config_name`: name created under `pki/keys/external/config/<name>`.
-- `key_type`: public key type of the external key. Supported values are `rsa`, `ec`, and `ed25519`.
 - `external_key_options.name`: existing key label/name in the external provider.
 
 Optional fields:
 
 - `key_name`: OpenBao-local name for this key reference.
+- `key_type`: public key type of the external key. Supported values are `rsa`, `ec`, `ed25519`, and `mldsa`. If omitted, OpenBao fetches the external public key and automatically stores the detected `key_type`. When the key size is known, the response also includes `key_bits`.
 - additional keys in `external_key_options`: provider-specific key options, such as password or signing parameters.
 
-The response contains `key_id`, `key_name`, and `key_type`. It does not contain `private_key`, because the private key stays in the HSM.
+For ML-DSA external keys, omit `key_type` or set it to `mldsa`. Auto-detection returns `key_bits` as `44`, `65`, or `87` when the external provider exposes the public key metadata.
+
+The response contains `key_id`, `key_name`, `key_type`, and optionally `key_bits`. It does not contain `private_key`, because the private key stays in the HSM.
 
 Use the external key with normal PKI flows:
 

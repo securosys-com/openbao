@@ -1,4 +1,4 @@
-module github.com/openbao/openbao
+module github.com/openbao/openbao/v2
 
 // The go version directive value isn't consulted when building our production binaries,
 // and the vault module isn't intended to be imported into other projects.  As such the
@@ -9,7 +9,7 @@ module github.com/openbao/openbao
 // updated. If we choose not to do so at some point (e.g. because we don't want some new
 // semantic related to Go module handling), this comment should be updated to explain that.
 
-go 1.25.8
+go 1.27rc2
 
 replace github.com/openbao/openbao/api/v2 => ./api
 
@@ -21,13 +21,13 @@ replace github.com/openbao/openbao/api/auth/userpass/v2 => ./api/auth/userpass
 
 replace github.com/openbao/openbao/sdk/v2 => ./sdk
 
-replace github.com/boltdb/bolt => ./helper/stubbolt
+replace github.com/boltdb/bolt => ./internal/helper/stubbolt
 
-replace github.com/openbao/go-kms-wrapping/v2 => github.com/securosys-com/go-kms-wrapping/v2 v2.0.0-20260706151009-b77598feef53
+replace github.com/openbao/go-kms-wrapping/v2 => github.com/securosys-com/go-kms-wrapping/v2 v2.0.0-20260715141209-7014f6adf9c4
 
-replace github.com/openbao/go-kms-wrapping/wrappers/securosyshsm/v2 => github.com/securosys-com/go-kms-wrapping/wrappers/securosyshsm/v2 v2.0.0-20260706151009-b77598feef53
+replace github.com/openbao/go-kms-wrapping/wrappers/securosyshsm/v2 => github.com/securosys-com/go-kms-wrapping/wrappers/securosyshsm/v2 v2.0.0-20260715141209-7014f6adf9c4
 
-replace github.com/openbao/go-kms-wrapping/kms/securosyshsm/v2 => github.com/securosys-com/go-kms-wrapping/kms/securosyshsm/v2 v2.0.0-20260706151009-b77598feef53
+replace github.com/openbao/go-kms-wrapping/kms/securosyshsm/v2 => github.com/securosys-com/go-kms-wrapping/kms/securosyshsm/v2 v2.0.0-20260715141209-7014f6adf9c4
 
 require (
 	cloud.google.com/go/monitoring v1.29.0
@@ -58,7 +58,7 @@ require (
 	github.com/hashicorp/go-discover v1.3.0
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/go-memdb v1.3.5
-	github.com/hashicorp/go-metrics v0.5.4
+	github.com/hashicorp/go-metrics v0.6.0
 	github.com/hashicorp/go-msgpack v0.5.5
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/go-plugin v1.8.0
@@ -87,7 +87,7 @@ require (
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/jcmturner/gokrb5/v8 v8.4.4
 	github.com/jefferai/isbadcipher v0.0.0-20190226160619-51d2077c035f
-	github.com/klauspost/compress v1.18.6
+	github.com/klauspost/compress v1.18.7
 	github.com/kr/pretty v0.3.1
 	github.com/kr/text v0.2.0
 	github.com/mattn/go-colorable v0.1.15
@@ -100,13 +100,13 @@ require (
 	github.com/mitchellh/go-wordwrap v1.0.1
 	github.com/mitchellh/pointerstructure v1.2.1
 	github.com/mitchellh/reflectwalk v1.0.2
-	github.com/moby/moby/api v1.54.2
-	github.com/moby/moby/client v0.4.1
+	github.com/moby/moby/api v1.55.0
+	github.com/moby/moby/client v0.5.0
 	github.com/oklog/run v1.2.0
 	github.com/okta/okta-sdk-golang/v2 v2.20.0
 	github.com/openbao/go-kms-wrapping/kms/securosyshsm/v2 v2.0.0-00010101000000-000000000000
 	github.com/openbao/go-kms-wrapping/plugin/v2 v2.3.0
-	github.com/openbao/go-kms-wrapping/v2 v2.8.0
+	github.com/openbao/go-kms-wrapping/v2 v2.8.1-0.20260626131931-998c8a6f17f4
 	github.com/openbao/go-kms-wrapping/wrappers/kmip/v2 v2.2.0
 	github.com/openbao/go-kms-wrapping/wrappers/securosyshsm/v2 v2.0.0-00010101000000-000000000000
 	github.com/openbao/go-kms-wrapping/wrappers/static/v2 v2.2.0
@@ -177,7 +177,7 @@ require (
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
 	github.com/Azure/go-ntlmssp v0.1.1 // indirect
 	github.com/BurntSushi/toml v1.5.0 // indirect
-	github.com/DataDog/datadog-go v3.2.0+incompatible // indirect
+	github.com/DataDog/datadog-go v4.8.3+incompatible // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver/v3 v3.4.0 // indirect
 	github.com/Masterminds/sprig/v3 v3.2.3 // indirect
@@ -295,6 +295,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f // indirect
 	github.com/nicolai86/scaleway-sdk v1.10.2-0.20180628010248-798f60e20bb2 // indirect
+	github.com/openbao/go-kms-wrapping/kms/transit/v2 v2.0.0-20260702181307-27914f69f271 // indirect
 	github.com/openbao/openbao/api/auth/kubernetes/v2 v2.0.1 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
@@ -309,7 +310,7 @@ require (
 	github.com/prometheus/procfs v0.16.1 // indirect
 	github.com/renier/xmlrpc v0.0.0-20170708154548-ce4a1a486c03 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
-	github.com/securosys-com/tsb-client-go v1.0.1 // indirect
+	github.com/securosys-com/tsb-client-go v1.1.0 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/softlayer/softlayer-go v0.0.0-20180806151055-260589d94c7d // indirect
@@ -354,5 +355,3 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.0 // indirect
 )
-
-retract [v0.1.0, v1.17.0]

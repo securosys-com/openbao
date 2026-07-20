@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
+	"crypto/mldsa"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha1"
@@ -339,6 +340,64 @@ func TestParsePKIMap(t *testing.T) {
 				assert.NotNil(t, parsedCertBundle.Certificate)
 
 				assert.Equal(t, parsedCertBundle.Certificate.Subject.CommonName, validCommonName)
+			}
+		})
+	}
+}
+
+func TestCreateMLDSACertificateAndCSR(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		keyBits     int
+		wantKeyBits int
+		wantParams  mldsa.Parameters
+		wantSigAlgo x509.SignatureAlgorithm
+	}{
+		{"mldsa44", 44, 44, mldsa.MLDSA44(), x509.MLDSA44},
+		{"mldsaDefault", 0, 65, mldsa.MLDSA65(), x509.MLDSA65},
+		{"mldsa87", 87, 87, mldsa.MLDSA87(), x509.MLDSA87},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			keyBits, signatureBits, err := ValidateDefaultOrValueKeyTypeSignatureLength("mldsa", tt.keyBits, 0)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantKeyBits, keyBits)
+			assert.Equal(t, 0, signatureBits)
+
+			params := &CreationParameters{
+				Subject:  pkix.Name{CommonName: tt.name + ".localhost"},
+				IsCA:     true,
+				KeyType:  "mldsa",
+				KeyBits:  keyBits,
+				NotAfter: time.Now().Add(time.Hour),
+				URLs:     &URLEntries{},
+			}
+
+			certBundle, err := CreateCertificate(&CreationBundle{Params: params})
+			assert.NoError(t, err)
+			assert.Equal(t, MLDSAPrivateKey, certBundle.PrivateKeyType)
+			assert.Equal(t, x509.MLDSA, certBundle.Certificate.PublicKeyAlgorithm)
+			assert.Equal(t, tt.wantSigAlgo, certBundle.Certificate.SignatureAlgorithm)
+
+			priv, ok := certBundle.PrivateKey.(*mldsa.PrivateKey)
+			if assert.True(t, ok) {
+				assert.Equal(t, tt.wantParams, priv.PublicKey().Parameters())
+			}
+
+			csrBundle, err := CreateCSR(&CreationBundle{Params: params}, true)
+			assert.NoError(t, err)
+			assert.Equal(t, MLDSAPrivateKey, csrBundle.PrivateKeyType)
+			assert.Equal(t, x509.MLDSA, csrBundle.CSR.PublicKeyAlgorithm)
+			assert.Equal(t, tt.wantSigAlgo, csrBundle.CSR.SignatureAlgorithm)
+
+			csrPriv, ok := csrBundle.PrivateKey.(*mldsa.PrivateKey)
+			if assert.True(t, ok) {
+				assert.Equal(t, tt.wantParams, csrPriv.PublicKey().Parameters())
 			}
 		})
 	}

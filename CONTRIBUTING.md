@@ -64,7 +64,7 @@ git commit --signoff -m"my commit"
 git commit --amend --signoff
 
 # Sign off every commit in your branch
-git rebase --signoff master
+git rebase --signoff main
 ```
 
 This will add a line similar to the following at the end of your commit:
@@ -93,9 +93,9 @@ the root of this repository. That document is considered part of this document.
 
 ### OpenBao Working Groups
 
-| Working Group                                                  | Chair       | Voting Members                                                                      |
-|----------------------------------------------------------------|-------------| ----------------------------------------------------------------------------------- |
-| [Development Working Group](https://github.com/openbao/dev-wg) | Alex Scheel | Dan Ghita, Nathan Phelps, Jan Martens, Dave Dykstra, Jonas Köhnen, Andrii Fedorchuk, Wojciech Slabosz, Huy Dinh, Philipp Stehle, Pascal Reeb |
+| Working Group                                                  | Chair       | Voting Members                                                                                                                             |
+|----------------------------------------------------------------|-------------| ------------------------------------------------------------------------------------------------------------------------------------------ |
+| [Development Working Group](https://github.com/openbao/dev-wg) | Alex Scheel | Alex Scheel, Andrii Fedorchuk, Dan Ghita, Dave Dykstra, Huy Dinh, Jan Martens, Jonas Köhnen, Pascal Reeb, Philipp Stehle, Wojciech Slabosz |
 
 ## Issues
 
