@@ -1,10 +1,16 @@
 # Securosys REST-based HSM integration in OpenBao
 
-This OpenBao update implements a platform-agnostic REST-based HSM interface with zero library installation, while eliminating connectivity hurdles by using secure web connections (TLS). This facilitates the use and deployment in clustered and multi-cloud environments. Moreover, Securosys HSM innovations like hardware enforced multi-authorization are at oneís disposal.
-Security is paramount, experience Securosys Primus HSM or CloudsHSM integration without hassle from the very beginning.
+This is a fork of [OpenBao](https://github.com/openbao/openbao) which
+adds improved support for Securosys HSMs.
 
-- Unlock your Vault with the security of an HSM
-- Make use of multi-authorization workflows for compliance applications
+In particular, this fork adds support for accessing a Primus HSM through the
+REST API exposed by the [Securosys Transaction Security Broker (TSB)](https://docs.securosys.com/tsb/overview/).
+This has the following benefits:
+
+- Auto-unseal: Unlock your Vault with the security of an HSM.
+- PKI external keys: Use the OpenBao PKI features with keys stored in an HSM.
+- Multi-authorization: With the TSB, it is easy to use [Smart Key Attributes (SKA)](https://docs.securosys.com/ska/overview) in your OpenBao Vault.
+- No library installation: Unlike PKCS#11, REST does not require the installation of a dynamic library or additional config files.
 
 This integration is actively maintained by Securosys SA.
 
@@ -43,28 +49,19 @@ This integration is actively maintained by Securosys SA.
 | TSB       | Transaction Security Broker, providing the REST interface                             |
 | UI        | User Interface                                                                        |
 
-## Setup
-
-> **Prerequisites:** Install Golang 1.21.2 ([download](https://go.dev/dl/))
-
-- On Windows : Add GOPATH and GOROOT manually to the system environment and restart your console.
-  - GOPATH default `%USERPROFILE%\go`
-  - GOROOT defaults to `%programfiles%`
-
-### Additional prerequisites for UI
-
-For the graphical User Interface the following packages must be installed on the machine:
-
-- [Node.js](https://nodejs.org/dist/v16.17.1/) (with NPM) - version v16.17.1
-- [Yarn](https://yarnpkg.com/en/) - Can be installed with the command `npm install -g yarn`
-
 ## How to build OpenBao
 
-### Using pre-built releases
+### Prerequisites
 
-You can find pre-built releases of the OpenBao on the Securosys JFrog artifactory. Download the latest binary file, corresponding to your target OS, or configuration files.
+To build OpenBao from source, you need to install:
 
-Further documentation and credentials are available via the [Securosys Support Portal](https://support.securosys.com/external/knowledge-base/article/192) or the Securosys [web-site](https://www.securosys.com/en/openbao).
+- [Go](https://go.dev/dl/)
+- [NodeJS with pnpm](https://nodejs.org/en/download)
+
+On Windows: Add GOPATH and GOROOT manually to the system environment and restart your console.
+
+- GOPATH default `%USERPROFILE%\go`
+- GOROOT defaults to `%programfiles%`
 
 ### Build from sources
 
@@ -90,7 +87,7 @@ To build all executables for all platforms
 
 ## How to run Vault CE
 
-You can run OpenBao without building it
+You can build and run OpenBao in one step with
 `go run ./main.go [openbao parameters]`
 
 ### Developer mode
@@ -496,9 +493,9 @@ In our Community we welcome contributions. The Community software is open source
 **Commercial Support for REST/TSB and HSM related issues:**
 Securosys customers having an active support contract, open a support ticket via [Securosys Support Portal](https://support.securosys.com/external/service-catalogue/21).
 
-**Getting a temporary CloudsHSM developer account:**
-Check-out a time limited developer account by registering [here](https://app.securosys.com) and choosing _Trial Account_.
+**Getting a temporary CloudHSM developer account:**
+Check-out a time limited developer account by registering on [cloud.securosys.com](https://cloud.securosys.com) and choosing _Trial Account_.
 
 ## License
 
-Securosys REST-based HSM integration in HashiCorp OpenBao CE is licensed under the HashiCorp Business Source License, please see [LICENSE](https://github.com/securosys-com/hcvault-ce-rest-integration/LICENSE).
+Like upstream OpenBao, this fork is licensed under [MPL-2.0](./LICENSE).
