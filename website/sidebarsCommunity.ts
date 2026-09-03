@@ -84,6 +84,7 @@ const sidebars: SidebarsConfig = {
                 "rfcs/config-audit-devices",
                 "rfcs/opentelemetry",
                 "rfcs/efficient-search-components",
+                "rfcs/parallel-unseal",
                 "rfcs/emergency-seal",
                 {
                     "UI/UX": ["rfcs/web-ui-modernization"],
@@ -94,11 +95,14 @@ const sidebars: SidebarsConfig = {
                     ],
                 },
                 "rfcs/config-plugins",
+                "rfcs/plugin-improvements",
                 "rfcs/postgresql",
                 "rfcs/invalidation",
                 "rfcs/lightweight-ocsp-support",
                 "rfcs/grpc-invalidation",
                 "rfcs/control-groups",
+                "rfcs/pqc",
+                "rfcs/index-headers",
             ],
         },
         {

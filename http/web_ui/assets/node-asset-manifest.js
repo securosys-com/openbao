@@ -1,0 +1,6 @@
+/* eslint-disable */
+define('vault/config/node-asset-manifest', function() {
+  return {
+    default: {"bundles":{"open-api-explorer":{"assets":[{"uri":"/ui/engines-dist/open-api-explorer/assets/engine-vendor.css","type":"css"},{"uri":"/ui/engines-dist/open-api-explorer/assets/engine-vendor.js","type":"js"},{"uri":"/ui/engines-dist/open-api-explorer/assets/engine.css","type":"css"},{"uri":"/ui/engines-dist/open-api-explorer/assets/engine.js","type":"js"}]}}}
+  };
+});
