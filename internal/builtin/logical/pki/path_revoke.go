@@ -461,7 +461,7 @@ func validatePublicKeyMatchesCert(verifier crypto.PublicKey, certReference *x509
 		if !ok {
 			return errutil.UserError{Err: "provided private key type does not match certificate's public key type"}
 		}
-		if !privPub.Equal(certPub) {
+		if !certPub.Equal(privPub) {
 			return errutil.UserError{Err: "provided private key does not match certificate's public key"}
 		}
 	default:
@@ -588,7 +588,7 @@ func (b *backend) pathRotateCRLRead(ctx context.Context, req *logical.Request, _
 	}
 
 	resp := &logical.Response{
-		Data: map[string]any{
+		Data: map[string]interface{}{
 			"success": true,
 		},
 	}
@@ -621,7 +621,7 @@ func (b *backend) pathRotateDeltaCRLRead(ctx context.Context, req *logical.Reque
 	}
 
 	resp := &logical.Response{
-		Data: map[string]any{
+		Data: map[string]interface{}{
 			"success": true,
 		},
 	}

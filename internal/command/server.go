@@ -477,6 +477,7 @@ func (c *ServerCommand) runRecoveryMode() int {
 	default:
 		wrapper, config, err := kms.ConfigureWrapper(
 			context.Background(), configSeal.Type, wrapping.WithConfigMap(configSeal.Config),
+			wrapping.WithLogger(c.logger.Named("seal."+configSeal.Type)),
 		)
 		if err != nil {
 			c.UI.Error(fmt.Sprintf("Error configuring seal %q: %s", configSeal.Type, err))
@@ -2543,6 +2544,7 @@ func setSeal(c *ServerCommand, config *server.Config, kms *kmsplugin.Catalog, in
 		default:
 			wrapper, config, err := kms.ConfigureWrapper(
 				context.Background(), configSeal.Type, wrapping.WithConfigMap(configSeal.Config),
+				wrapping.WithLogger(c.logger.Named("seal."+configSeal.Type)),
 			)
 			if err != nil {
 				//nolint:staticcheck // User-facing error.

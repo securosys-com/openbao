@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/openbao/openbao/sdk/v2/framework"
-	"github.com/openbao/openbao/sdk/v2/helper/certutil"
 	"github.com/openbao/openbao/sdk/v2/helper/errutil"
 	"github.com/openbao/openbao/sdk/v2/logical"
 	"golang.org/x/crypto/ed25519"
@@ -317,7 +316,7 @@ func pathFetchListCertsDetailed(b *backend) *framework.Path {
 
 func (b *backend) pathFetchCertListDetailed(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	var responseKeys []string
-	responseInfo := make(map[string]any)
+	responseInfo := make(map[string]interface{})
 
 	after := data.Get("after").(string)
 	limit := data.Get("limit").(int)
@@ -382,18 +381,21 @@ func (b *backend) pathFetchCertListDetailed(ctx context.Context, req *logical.Re
 			keyBits = 256 // Fixed size for Ed25519
 			keyType = "ed25519"
 		case *mldsa.PublicKey:
-			keyType = "mldsa"
-			label := certutil.GetMLDSAParameterSetLabel(pubKey)
-			if label == -1 {
-				return nil, fmt.Errorf("unknown ML-DSA parameter set: %s", pubKey.Parameters().String())
+			switch pubKey.Parameters() {
+			case mldsa.MLDSA44():
+				keyBits = 44
+			case mldsa.MLDSA65():
+				keyBits = 65
+			case mldsa.MLDSA87():
+				keyBits = 87
 			}
-			keyBits = label
+			keyType = "mldsa"
 		default:
 			keyBits = 0 // Unknown key type
 			keyType = "unknown"
 		}
 
-		responseInfo[string(entries[i])] = map[string]any{
+		responseInfo[string(entries[i])] = map[string]interface{}{
 			"common_name": certData.Subject.CommonName,
 			"issuer":      certData.Issuer.String(),
 			"key_type":    keyType,
@@ -420,7 +422,7 @@ func (b *backend) pathFetchRead(ctx context.Context, req *logical.Request, data 
 	var revocationTimeRfc3339 string
 
 	response = &logical.Response{
-		Data: map[string]any{},
+		Data: map[string]interface{}{},
 	}
 	sc := b.makeStorageContext(ctx, req.Storage)
 
@@ -605,7 +607,7 @@ reply:
 	switch {
 	case len(contentType) != 0:
 		response = &logical.Response{
-			Data: map[string]any{
+			Data: map[string]interface{}{
 				logical.HTTPContentType: contentType,
 				logical.HTTPRawBody:     certificate,
 			},

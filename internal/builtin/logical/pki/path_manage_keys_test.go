@@ -5,6 +5,7 @@ package pki
 
 import (
 	"crypto/elliptic"
+	"crypto/mldsa"
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
@@ -36,6 +37,7 @@ func TestPKI_PathManageKeys_GenerateInternalKeys(t *testing.T) {
 		{"mldsa", "mldsa", []int{0, 44, 65, 87}, false},
 		{"error-rsa", "rsa", []int{-1, 343444}, true},
 		{"error-ec", "ec", []int{-1, 3434324}, true},
+		{"error-mldsa", "mldsa", []int{-1, 66}, true},
 		{"error-bad-type", "dskjfkdsfjdkf", []int{0}, true},
 	}
 	for _, tt := range tests {
@@ -117,6 +119,67 @@ func TestPKI_PathManageKeys_GenerateExportedKeys(t *testing.T) {
 	key, err := x509.ParseECPrivateKey(block.Bytes)
 	require.NoError(t, err, "failed parsing pem block as ec private key")
 	require.Equal(t, elliptic.P224(), key.Curve, "got unexpected curve value in returned private key")
+}
+
+func TestPKI_PathManageKeys_GenerateExportedMLDSAKey(t *testing.T) {
+	t.Parallel()
+	b, s := CreateBackendWithStorage(t)
+
+	resp, err := b.HandleRequest(t.Context(), &logical.Request{
+		Operation: logical.UpdateOperation,
+		Path:      "keys/generate/exported",
+		Storage:   s,
+		Data: map[string]interface{}{
+			"key_type": "mldsa",
+			"key_bits": 87,
+		},
+		MountPoint: "pki/",
+	})
+	schema.ValidateResponse(t, schema.GetResponseSchema(t, b.Route("keys/generate/exported"), logical.UpdateOperation), resp, true)
+
+	require.NoError(t, err, "Failed generating exported ML-DSA key")
+	require.NotNil(t, resp, "Got nil response generating exported ML-DSA key")
+	require.Equal(t, "mldsa", resp.Data["key_type"], "key_type field contained an invalid type")
+	require.NotEmpty(t, resp.Data["key_id"], "returned an empty key_id field, should never happen")
+	require.NotEmpty(t, resp.Data["private_key"], "private_key field should not be empty in exported generation type.")
+
+	keyData := resp.Data["private_key"].(string)
+	block, rest := pem.Decode([]byte(keyData))
+	require.Empty(t, rest, "should not have had any trailing data")
+	require.NotNil(t, block, "failed decoding pem block")
+	require.Equal(t, "PRIVATE KEY", block.Type)
+
+	rawKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	require.NoError(t, err, "failed parsing pem block as pkcs8 private key")
+	key, ok := rawKey.(*mldsa.PrivateKey)
+	require.True(t, ok, "expected ML-DSA private key, got %T", rawKey)
+	require.Equal(t, mldsa.MLDSA87(), key.PublicKey().Parameters(), "got unexpected ML-DSA parameter set")
+}
+
+func TestPKI_GenerateRootMLDSA(t *testing.T) {
+	t.Parallel()
+	b, s := CreateBackendWithStorage(t)
+
+	resp, err := CBWrite(b, s, "root/generate/internal", map[string]interface{}{
+		"common_name": "mldsa-root.localhost",
+		"ttl":         "1h",
+		"key_type":    "mldsa",
+		"key_bits":    44,
+	})
+	require.NoError(t, err, "failed generating ML-DSA root")
+	require.NotNil(t, resp, "got nil response generating ML-DSA root")
+	require.False(t, resp.IsError(), "got error response generating ML-DSA root: %s", resp.Error())
+
+	block, _ := pem.Decode([]byte(resp.Data["certificate"].(string)))
+	require.NotNil(t, block, "failed decoding returned certificate")
+	cert, err := x509.ParseCertificate(block.Bytes)
+	require.NoError(t, err, "failed parsing returned certificate")
+	require.Equal(t, x509.MLDSA, cert.PublicKeyAlgorithm)
+	require.Equal(t, x509.MLDSA44, cert.SignatureAlgorithm)
+
+	pubKey, ok := cert.PublicKey.(*mldsa.PublicKey)
+	require.True(t, ok, "expected ML-DSA public key, got %T", cert.PublicKey)
+	require.Equal(t, mldsa.MLDSA44(), pubKey.Parameters())
 }
 
 func TestPKI_PathManageKeys_GenerateExternalKeyReference(t *testing.T) {

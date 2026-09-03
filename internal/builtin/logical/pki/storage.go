@@ -86,6 +86,7 @@ type externalKeyRef struct {
 	Provider   string         `json:"provider"`
 	KeyName    string         `json:"key_name,omitempty"`
 	KeyType    string         `json:"key_type"`
+	KeyBits    int            `json:"key_bits,omitempty"`
 	Options    map[string]any `json:"options,omitempty"`
 }
 type kmsConfigEntry struct {
@@ -388,9 +389,27 @@ func (sc *storageContext) importExternalKeyReference(
 		PrivateKeyType: keyType,
 		ExternalKey: &externalKeyRef{
 			ConfigName: configName,
+			Provider:   config.Provider,
+			KeyName:    externalKeyName,
 			KeyType:    string(keyType),
 			Options:    options,
 		},
+	}
+
+	if keyType == certutil.UnknownPrivateKey {
+		pubKey, err := getPublicKey(sc, key)
+		if err != nil {
+			return nil, false, fmt.Errorf("failed to fetch external public key metadata: %w", err)
+		}
+
+		inferredKeyType, inferredKeyBits, err := getKeyTypeAndBitsFromPublicKeyForRole(pubKey)
+		if err != nil {
+			return nil, false, fmt.Errorf("failed to infer external key type: %w", err)
+		}
+
+		key.PrivateKeyType = inferredKeyType
+		key.ExternalKey.KeyType = string(inferredKeyType)
+		key.ExternalKey.KeyBits = inferredKeyBits
 	}
 
 	if err := sc.writeKey(*key); err != nil {
@@ -769,6 +788,11 @@ func (i issuerEntry) CanMaybeSignWithAlgo(algo x509.SignatureAlgorithm) error {
 	case x509.Ed25519:
 		switch algo {
 		case x509.PureEd25519:
+			return nil
+		}
+	case x509.MLDSA:
+		switch algo {
+		case x509.MLDSA44, x509.MLDSA65, x509.MLDSA87:
 			return nil
 		}
 	}

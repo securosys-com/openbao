@@ -37,7 +37,7 @@ func pathGenerateKey(b *backend) *framework.Path {
 				Default: "rsa",
 				Description: `The type of key to use; defaults to RSA. "rsa"
 "ec", "ed25519", and "mldsa" are the only valid values.`,
-				AllowedValues: []any{"rsa", "ec", "ed25519", "mldsa"},
+				AllowedValues: []interface{}{"rsa", "ec", "ed25519", "mldsa"},
 				DisplayAttrs: &framework.DisplayAttributes{
 					Value: "rsa",
 				},
@@ -48,11 +48,7 @@ func pathGenerateKey(b *backend) *framework.Path {
 				Description: `The number of bits to use. Allowed values are
 0 (universal default); with rsa key_type: 2048 (default), 3072, or
 4096; with ec key_type: 224, 256 (default), 384, or 521; ignored with
-ed25519; with mldsa key_type: 44 (default), 65, or 87.`,
-			},
-			externalKeyRefParam: {
-				Type:        framework.TypeString,
-				Description: externalKeyRefDesc,
+ed25519; with mldsa key_type: 44, 65 (default), or 87.`,
 			},
 			"external_config_name": {
 				Type:     framework.TypeString,
@@ -84,17 +80,17 @@ ed25519; with mldsa key_type: 44 (default), 65, or 87.`,
 							"key_type": {
 								Type: framework.TypeString,
 								Description: `The type of key to use; defaults to RSA. "rsa"
-								"ec" and "ed25519" are the only valid values.`,
+								"ec", "ed25519", and "mldsa" are the only valid values.`,
 								Required: true,
+							},
+							"key_bits": {
+								Type:        framework.TypeInt,
+								Description: `The number of bits used by the key.`,
+								Required:    false,
 							},
 							"private_key": {
 								Type:        framework.TypeString,
 								Description: `The private key string`,
-								Required:    false,
-							},
-							externalKeyRefParam: {
-								Type:        framework.TypeString,
-								Description: externalKeyRefDesc,
 								Required:    false,
 							},
 						},
@@ -134,13 +130,14 @@ func (b *backend) pathGenerateKeyHandler(ctx context.Context, req *logical.Reque
 
 	exportPrivateKey := false
 	var keyBundle certutil.KeyBundle
-	var privateKeyPemString string
-
-	externalKeyRef := data.Get(externalKeyRefParam).(string)
+	var actualPrivateKeyType certutil.PrivateKeyType
 	switch {
 	case strings.HasSuffix(req.Path, "/external"):
 		configName := data.Get("external_config_name").(string)
 		keyType := certutil.PrivateKeyType(data.Get(keyTypeParam).(string))
+		if _, ok := data.Raw[keyTypeParam]; !ok {
+			keyType = certutil.UnknownPrivateKey
+		}
 		externalKeyOptions, _ := data.Get("external_key_options").(map[string]interface{})
 
 		key, exists, err := sc.importExternalKeyReference(
@@ -156,25 +153,26 @@ func (b *backend) pathGenerateKeyHandler(ctx context.Context, req *logical.Reque
 			return logical.ErrorResponse("Key already exists, use key/ endpoint to update name."), nil
 		}
 
+		responseData := map[string]interface{}{
+			keyIdParam:   key.ID,
+			keyNameParam: key.Name,
+			keyTypeParam: key.PrivateKeyType,
+		}
+		if key.ExternalKey != nil && key.ExternalKey.KeyBits > 0 {
+			responseData[keyBitsParam] = key.ExternalKey.KeyBits
+		}
+
 		return &logical.Response{
-			Data: map[string]interface{}{
-				keyIdParam:   key.ID,
-				keyNameParam: key.Name,
-				keyTypeParam: keyType,
-			},
+			Data: responseData,
 		}, nil
 	case strings.HasSuffix(req.Path, "/exported"):
 		exportPrivateKey = true
 		fallthrough
 	case strings.HasSuffix(req.Path, "/internal"):
-		if getExternalKeyRef(data) != "" {
-			return logical.ErrorResponse("cannot specify %q on non-kms typed key generation request", externalKeyRefParam), nil
-		}
-
 		keyType := data.Get(keyTypeParam).(string)
 		keyBits := data.Get(keyBitsParam).(int)
 
-		keyBits, err := certutil.ValidateDefaultOrValueKeyTypeLength(keyType, keyBits)
+		keyBits, _, err := certutil.ValidateDefaultOrValueKeyTypeSignatureLength(keyType, keyBits, 0)
 		if err != nil {
 			return logical.ErrorResponse("Validation for key_type, key_bits failed: %s", err.Error()), nil
 		}
@@ -185,41 +183,27 @@ func (b *backend) pathGenerateKeyHandler(ctx context.Context, req *logical.Reque
 			return nil, err
 		}
 
-		privateKeyPemString, err = keyBundle.ToPrivateKeyPemString()
-		if err != nil {
-			return nil, err
-		}
-	case strings.HasSuffix(req.Path, "/kms"):
-		if len(externalKeyRef) == 0 {
-			return logical.ErrorResponse("%q is required for kms typed key generation", externalKeyRefParam), nil
-		}
-
-		keyBundle.PrivateKeyType = certutil.ExternalPrivateKey
-		privateKeyPemString = externalKeyRef
+		actualPrivateKeyType = keyBundle.PrivateKeyType
 	default:
 		return logical.ErrorResponse("Unknown type of key to generate"), nil
+	}
+
+	privateKeyPemString, err := keyBundle.ToPrivateKeyPemString()
+	if err != nil {
+		return nil, err
 	}
 
 	key, _, err := sc.importKey(privateKeyPemString, keyName, keyBundle.PrivateKeyType)
 	if err != nil {
 		return nil, err
 	}
-
-	actualPrivateKeyType := keyBundle.PrivateKeyType
-	if keyBundle.PrivateKeyType == certutil.ExternalPrivateKey {
-		actualPrivateKeyType = key.ExternalKeyType
-	}
-
-	responseData := map[string]any{
+	responseData := map[string]interface{}{
 		keyIdParam:   key.ID,
 		keyNameParam: key.Name,
 		keyTypeParam: string(actualPrivateKeyType),
 	}
 	if exportPrivateKey {
 		responseData["private_key"] = privateKeyPemString
-	}
-	if keyBundle.PrivateKeyType == certutil.ExternalPrivateKey {
-		responseData[externalKeyRefParam] = externalKeyRef
 	}
 	return &logical.Response{
 		Data: responseData,
@@ -267,7 +251,7 @@ func pathImportKey(b *backend) *framework.Path {
 							"key_type": {
 								Type: framework.TypeString,
 								Description: `The type of key to use; defaults to RSA. "rsa"
-								"ec" and "ed25519" are the only valid values.`,
+								"ec", "ed25519", and "mldsa" are the only valid values.`,
 								Required: true,
 							},
 						},
@@ -350,7 +334,7 @@ func (b *backend) pathImportKeyHandler(ctx context.Context, req *logical.Request
 	}
 
 	resp := logical.Response{
-		Data: map[string]any{
+		Data: map[string]interface{}{
 			keyIdParam:   key.ID,
 			keyNameParam: key.Name,
 			keyTypeParam: key.PrivateKeyType,

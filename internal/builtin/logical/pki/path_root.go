@@ -205,7 +205,7 @@ func (b *backend) pathCAGenerateRoot(ctx context.Context, req *logical.Request, 
 	}
 
 	resp := &logical.Response{
-		Data: map[string]any{
+		Data: map[string]interface{}{
 			"expiration":    int64(parsedBundle.Certificate.NotAfter.Unix()),
 			"serial_number": cb.SerialNumber,
 		},
@@ -463,7 +463,7 @@ func (b *backend) pathIssuerSignIntermediate(ctx context.Context, req *logical.R
 	}
 
 	resp := &logical.Response{
-		Data: map[string]any{
+		Data: map[string]interface{}{
 			"expiration":    int64(parsedBundle.Certificate.NotAfter.Unix()),
 			"serial_number": cb.SerialNumber,
 		},
@@ -632,7 +632,7 @@ func (b *backend) pathIssuerSignSelfIssued(ctx context.Context, req *logical.Req
 	})
 
 	return &logical.Response{
-		Data: map[string]any{
+		Data: map[string]interface{}{
 			"certificate": strings.TrimSpace(string(pemCert)),
 			"issuing_ca":  signingCB.Certificate,
 		},
@@ -671,10 +671,10 @@ func publicKeyType(pub crypto.PublicKey) (pubType x509.PublicKeyAlgorithm, sigAl
 		case mldsa.MLDSA87():
 			sigAlgo = x509.MLDSA87
 		default:
-			err = errors.New("x509: unknown ML-DSA parameters")
+			err = errors.New("x509: unknown ML-DSA parameter set")
 		}
 	default:
-		err = errors.New("x509: only RSA, ECDSA, Ed25519, and ML-DSA keys supported")
+		err = errors.New("x509: only RSA, ECDSA, Ed25519 and ML-DSA keys supported")
 	}
 	return pubType, sigAlgo, err
 }

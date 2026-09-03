@@ -12,14 +12,16 @@ import (
 	gkwplugin "github.com/openbao/go-kms-wrapping/plugin/v2"
 	wrapping "github.com/openbao/go-kms-wrapping/v2"
 	"github.com/openbao/go-kms-wrapping/wrappers/kmip/v2"
+	securosyshsm "github.com/openbao/go-kms-wrapping/wrappers/securosyshsm/v2"
 	"github.com/openbao/go-kms-wrapping/wrappers/static/v2"
 	"github.com/openbao/go-kms-wrapping/wrappers/transit/v2"
 )
 
 var builtinWrappers = map[wrapping.WrapperType]func() wrapping.Wrapper{
-	kmip.Type:    toWrapper(kmip.NewWrapper),
-	static.Type:  toWrapper(static.NewWrapper),
-	transit.Type: toWrapper(transit.NewWrapper),
+	kmip.Type:         toWrapper(kmip.NewWrapper),
+	static.Type:       toWrapper(static.NewWrapper),
+	transit.Type:      toWrapper(transit.NewWrapper),
+	securosyshsm.Type: toWrapper(securosyshsm.NewWrapper),
 }
 
 // wrapperInitFinalizer is a joint wrapping.Wrapper & wrapping.InitFinalizer, as

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/mldsa"
 	"crypto/rsa"
 	"fmt"
 	"io"
@@ -42,6 +43,23 @@ func (s *kmsSigner) Sign(
 
 }
 
+func (s *kmsSigner) SignMessage(
+	rand io.Reader,
+	message []byte,
+	opts crypto.SignerOpts,
+) ([]byte, error) {
+	if opts == nil {
+		opts = crypto.Hash(0)
+	}
+
+	signature, err := s.key.Sign(s.ctx, &kms.SignOptions{
+		Data:       message,
+		Prehashed:  false,
+		SignerOpts: opts,
+	})
+	return signature, err
+}
+
 func NewKMSSigner(ctx context.Context, key kms.Key) (crypto.Signer, error) {
 	pub, err := key.ExportPublic(ctx)
 	if err != nil {
@@ -49,7 +67,7 @@ func NewKMSSigner(ctx context.Context, key kms.Key) (crypto.Signer, error) {
 	}
 
 	switch pub.(type) {
-	case *rsa.PublicKey, *ecdsa.PublicKey, ed25519.PublicKey:
+	case *rsa.PublicKey, *ecdsa.PublicKey, ed25519.PublicKey, *mldsa.PublicKey:
 	default:
 		return nil, fmt.Errorf("unsupported KMS public key type %T", pub)
 	}

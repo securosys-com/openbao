@@ -158,6 +158,11 @@ func buildPathKey(b *backend, pattern string, displayAttrs *framework.DisplayAtt
 								Description: `Key Type`,
 								Required:    true,
 							},
+							"key_bits": {
+								Type:        framework.TypeInt,
+								Description: `Key bits`,
+								Required:    false,
+							},
 							"subject_key_id": {
 								Type:        framework.TypeString,
 								Description: `RFC 5280 Subject Key Identifier of the public counterpart`,
@@ -260,6 +265,9 @@ func (b *backend) pathGetKeyHandler(ctx context.Context, req *logical.Request, d
 		respData["external_config_name"] = key.ExternalKey.ConfigName
 		respData["external_key_type"] = key.ExternalKey.KeyType
 		respData["external_key_options"] = key.ExternalKey.Options
+		if key.ExternalKey.KeyBits > 0 {
+			respData[keyBitsParam] = key.ExternalKey.KeyBits
+		}
 	}
 
 	pkForSkid, err := getPublicKey(sc, key)

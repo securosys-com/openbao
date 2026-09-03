@@ -50,7 +50,7 @@ func pathCelIssue(b *backend) *framework.Path {
 		Description: `The number of bits to use. Allowed values are
 0 (universal default); with rsa key_type: 2048 (default), 3072, or
 4096; with ec key_type: 224, 256 (default), 384, or 521; ignored with
-ed25519; with mldsa key_type: 44 (default), 65, or 87.`,
+ed25519; with mldsa key_type: 44, 65 (default), or 87.`,
 		DisplayAttrs: &framework.DisplayAttributes{
 			Value: 0,
 		},
@@ -60,9 +60,9 @@ ed25519; with mldsa key_type: 44 (default), 65, or 87.`,
 		Type:    framework.TypeString,
 		Default: "",
 		Description: `The type of key to use; defaults to the empty string
-to use whatever is specified by the role. "rsa", "ec", "ed25519", and "mldsa"
-are the only valid values outside of the empty string.`,
-		AllowedValues: []any{"", "rsa", "ec", "ed25519", "mldsa"},
+to use whatever is specified by the role. "rsa", "ec", "ed25519", and "mldsa" are the
+only valid values outside of the empty string.`,
+		AllowedValues: []interface{}{"", "rsa", "ec", "ed25519", "mldsa"},
 		DisplayAttrs: &framework.DisplayAttributes{
 			Value: "",
 		},
@@ -229,7 +229,7 @@ func buildPathIssue(b *backend, pattern string, displayAttrs *framework.DisplayA
 		Description: `The number of bits to use. Allowed values are
 0 (universal default); with rsa key_type: 2048 (default), 3072, or
 4096; with ec key_type: 224, 256 (default), 384, or 521; ignored with
-ed25519; with mldsa key_type: 44 (default), 65, or 87.`,
+ed25519; with mldsa key_type: 44, 65 (default), or 87.`,
 		DisplayAttrs: &framework.DisplayAttributes{
 			Value: 0,
 		},
@@ -239,9 +239,9 @@ ed25519; with mldsa key_type: 44 (default), 65, or 87.`,
 		Type:    framework.TypeString,
 		Default: "",
 		Description: `The type of key to use; defaults to the empty string
-to use whatever is specified by the role. "rsa","ec", "ed25519", and "mldsa"
-are the only valid values outside of the empty string.`,
-		AllowedValues: []any{"", "rsa", "ec", "ed25519", "mldsa"},
+to use whatever is specified by the role. "rsa", "ec", "ed25519", and "mldsa" are the
+only valid values outside of the empty string.`,
+		AllowedValues: []interface{}{"", "rsa", "ec", "ed25519", "mldsa"},
 		DisplayAttrs: &framework.DisplayAttributes{
 			Value: "",
 		},
@@ -571,7 +571,7 @@ func (b *backend) pathIssue(ctx context.Context, req *logical.Request, data *fra
 		// Perform validation of the new role parameters, updating an explicit
 		// zero-valued KeyBits to a useful value.
 		var err error
-		role.KeyBits, err = certutil.ValidateDefaultOrValueKeyTypeLength(role.KeyType, role.KeyBits)
+		role.KeyBits, role.SignatureBits, err = certutil.ValidateDefaultOrValueKeyTypeSignatureLength(role.KeyType, role.KeyBits, role.SignatureBits)
 		if err != nil {
 			return nil, fmt.Errorf("failed to validate role: %w", err)
 		}
@@ -680,7 +680,7 @@ func (b *backend) pathIssueSignCert(ctx context.Context, req *logical.Request, d
 
 	caChainGen := newCaChainOutput(parsedBundle, data)
 
-	respData := map[string]any{
+	respData := map[string]interface{}{
 		"not_before":    int64(parsedBundle.Certificate.NotBefore.Unix()),
 		"expiration":    int64(parsedBundle.Certificate.NotAfter.Unix()),
 		"serial_number": cb.SerialNumber,
@@ -738,7 +738,7 @@ func (b *backend) pathIssueSignCert(ctx context.Context, req *logical.Request, d
 	default:
 		resp = b.Secret(SecretCertsType).Response(
 			respData,
-			map[string]any{
+			map[string]interface{}{
 				"serial_number": cb.SerialNumber,
 			},
 		)
@@ -819,7 +819,7 @@ func (b *backend) pathCelIssueSignCert(ctx context.Context, req *logical.Request
 	// Initialize the evaluation context for CEL expressions with the raw request data.
 	// The "request" key allows CEL expressions to access and evaluate against input fields.
 	// Additional variables and evaluated results will be added dynamically during processing.
-	evaluationData := map[string]any{
+	evaluationData := map[string]interface{}{
 		"use_csr": useCSR,
 		"request": data.Raw,
 		"now":     time.Now(),
@@ -827,7 +827,7 @@ func (b *backend) pathCelIssueSignCert(ctx context.Context, req *logical.Request
 
 	// Parse then add the CSR to the evaluationData
 	if useCSR {
-		var parsedCsr map[string]any
+		var parsedCsr map[string]interface{}
 		if useCSR {
 			csrPEM, ok := data.GetOk("csr")
 			if ok {
@@ -917,7 +917,7 @@ func (b *backend) pathCelIssueSignCert(ctx context.Context, req *logical.Request
 
 		keyBits := int(validationOutput.KeyBits)
 
-		keyBits, err = certutil.ValidateDefaultOrValueKeyTypeLength(keyType, keyBits)
+		keyBits, signatureBits, err = certutil.ValidateDefaultOrValueKeyTypeSignatureLength(keyType, keyBits, signatureBits)
 		if err != nil {
 			return nil, fmt.Errorf("invalid cel response for key type, key bits, or signature bits: %w", err)
 		}
@@ -928,6 +928,15 @@ func (b *backend) pathCelIssueSignCert(ctx context.Context, req *logical.Request
 		evaluationData["use_pss"] = usePSS
 	} else {
 		signingKeyType := string(signingBundle.PrivateKeyType)
+		signingKeyBits, err := signingBundle.GetKeyBits()
+		if err != nil {
+			return nil, fmt.Errorf("unable to get signing key information: %w", err)
+		}
+
+		if signatureBits, err = certutil.DefaultOrValueHashBits(signingKeyType, signingKeyBits, signatureBits); err != nil {
+			return nil, err
+		}
+
 		if err := certutil.ValidateSignatureLength(signingKeyType, signatureBits); err != nil {
 			return nil, err
 		}
@@ -980,7 +989,7 @@ func (b *backend) pathCelIssueSignCert(ctx context.Context, req *logical.Request
 
 	caChainGen := newCaChainOutput(parsedBundle, data)
 
-	respData := map[string]any{
+	respData := map[string]interface{}{
 		"certificate":      cb.Certificate,
 		"not_before":       int64(parsedBundle.Certificate.NotBefore.Unix()),
 		"expiration":       int64(parsedBundle.Certificate.NotAfter.Unix()),
@@ -1000,7 +1009,7 @@ func (b *backend) pathCelIssueSignCert(ctx context.Context, req *logical.Request
 		// Lease-Managed Certificate
 		resp = b.Secret(SecretCertsType).Response(
 			respData,
-			map[string]any{
+			map[string]interface{}{
 				"serial_number": cb.SerialNumber,
 			},
 		)
@@ -1129,7 +1138,7 @@ func (b *backend) fetchCaSigningBundle(ctx context.Context, req *logical.Request
 }
 
 // csrToMap parses the CSR and returns it as a map of its attributes
-func csrToMap(csrPEM string) (map[string]any, error) {
+func csrToMap(csrPEM string) (map[string]interface{}, error) {
 	block, _ := pem.Decode([]byte(csrPEM))
 	if block == nil || block.Type != "CERTIFICATE REQUEST" {
 		return nil, fmt.Errorf("invalid CSR format")
@@ -1141,7 +1150,7 @@ func csrToMap(csrPEM string) (map[string]any, error) {
 	}
 
 	// Convert Extensions to a readable map
-	parsedExtensions := make(map[string]any)
+	parsedExtensions := make(map[string]interface{})
 	for _, ext := range csr.Extensions {
 		parsedExtensions[ext.Id.String()] = ext.Value
 	}
@@ -1164,7 +1173,7 @@ func csrToMap(csrPEM string) (map[string]any, error) {
 	}
 
 	// Map CSR attributes
-	parsedCsr := map[string]any{
+	parsedCsr := map[string]interface{}{
 		"Raw":                      csr.Raw,
 		"RawTBSCertificateRequest": csr.RawTBSCertificateRequest,
 		"RawSubjectPublicKeyInfo":  csr.RawSubjectPublicKeyInfo,
@@ -1177,7 +1186,7 @@ func csrToMap(csrPEM string) (map[string]any, error) {
 		"PublicKeyAlgorithm": csr.PublicKeyAlgorithm.String(),
 		"PublicKey":          csr.PublicKey,
 
-		"Subject": map[string]any{
+		"Subject": map[string]interface{}{
 			"CommonName":         csr.Subject.CommonName,
 			"Country":            csr.Subject.Country,
 			"Organization":       csr.Subject.Organization,

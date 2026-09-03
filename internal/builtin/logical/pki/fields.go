@@ -10,20 +10,14 @@ import (
 )
 
 const (
-	issuerRefParam      = "issuer_ref"
-	keyNameParam        = "key_name"
-	keyRefParam         = "key_ref"
-	keyIdParam          = "key_id"
-	keyTypeParam        = "key_type"
-	keyBitsParam        = "key_bits"
-	externalKeyRefParam = "external_key_ref"
-	skidParam           = "subject_key_id"
+	issuerRefParam = "issuer_ref"
+	keyNameParam   = "key_name"
+	keyRefParam    = "key_ref"
+	keyIdParam     = "key_id"
+	keyTypeParam   = "key_type"
+	keyBitsParam   = "key_bits"
+	skidParam      = "subject_key_id"
 )
-
-const externalKeyRefDesc = `Reference to the external key to use. This follows
-the format <config name>:<key name>, uniquely identifying the key configured
-under sys/external-keys/configs/<config name>/keys/<key name>. Must be an
-asymmetric key.`
 
 // addIssueAndSignCommonFields adds fields common to both CA and non-CA issuing
 // and signing
@@ -47,7 +41,7 @@ or "pem_bundle". If "pem_bundle", any private
 key and issuing cert will be appended to the
 certificate pem. If "der", the value will be
 base64 encoded. Defaults to "pem".`,
-		AllowedValues: []any{"pem", "der", "pem_bundle"},
+		AllowedValues: []interface{}{"pem", "der", "pem_bundle"},
 		DisplayAttrs: &framework.DisplayAttributes{
 			Value: "pem",
 		},
@@ -62,7 +56,7 @@ parameter as either base64-encoded DER or PEM-encoded DER.
 However, this can be set to "pkcs8" to have the returned
 private key contain base64-encoded pkcs8 or PEM-encoded
 pkcs8 instead. Defaults to "der".`,
-		AllowedValues: []any{"", "der", "pem", "pkcs8"},
+		AllowedValues: []interface{}{"", "der", "pem", "pkcs8"},
 		DisplayAttrs: &framework.DisplayAttributes{
 			Value: "der",
 		},
@@ -321,7 +315,7 @@ func addCAKeyGenerationFields(fields map[string]*framework.FieldSchema) map[stri
 "exported", the generated private key will be
 returned. This is your *only* chance to retrieve
 the private key!`,
-		AllowedValues: []any{"internal", "external", "kms"},
+		AllowedValues: []interface{}{"internal", "external", "kms"},
 	}
 
 	fields["key_bits"] = &framework.FieldSchema{
@@ -330,7 +324,7 @@ the private key!`,
 		Description: `The number of bits to use. Allowed values are
 0 (universal default); with rsa key_type: 2048 (default), 3072, or
 4096; with ec key_type: 224, 256 (default), 384, or 521; ignored with
-ed25519; with mldsa key_type: 44 (default), 65, or 87.`,
+ed25519; with mldsa key_type: 44, 65 (default), or 87.`,
 		DisplayAttrs: &framework.DisplayAttributes{
 			Value: 0,
 		},
@@ -358,17 +352,12 @@ RSA key-type issuer. Defaults to false.`,
 	fields["key_type"] = &framework.FieldSchema{
 		Type:    framework.TypeString,
 		Default: "rsa",
-		Description: `The type of key to use; defaults to RSA. "rsa",
+		Description: `The type of key to use; defaults to RSA. "rsa"
 "ec", "ed25519", and "mldsa" are the only valid values.`,
-		AllowedValues: []any{"rsa", "ec", "ed25519", "mldsa"},
+		AllowedValues: []interface{}{"rsa", "ec", "ed25519", "mldsa"},
 		DisplayAttrs: &framework.DisplayAttributes{
 			Value: "rsa",
 		},
-	}
-
-	fields[externalKeyRefParam] = &framework.FieldSchema{
-		Type:        framework.TypeString,
-		Description: externalKeyRefDesc,
 	}
 
 	fields = addKeyRefNameFields(fields)
@@ -509,16 +498,16 @@ in most operational scenarios).`,
 	fields["tidy_acme"] = &framework.FieldSchema{
 		Type: framework.TypeBool,
 		Description: `Set to true to enable tidying ACME accounts,
-orders and authorizations.  ACME orders are tidied (deleted)
+orders and authorizations.  ACME orders are tidied (deleted) 
 safety_buffer after the certificate associated with them expires,
-or after the order and relevant authorizations have expired if no
-certificate was produced.  Authorizations are tidied with the
+or after the order and relevant authorizations have expired if no 
+certificate was produced.  Authorizations are tidied with the 
 corresponding order.
 
 When a valid ACME Account is at least acme_account_safety_buffer
 old, and has no remaining orders associated with it, the account is
-marked as revoked.  After another acme_account_safety_buffer has
-passed from the revocation or deactivation date, a revoked or
+marked as revoked.  After another acme_account_safety_buffer has 
+passed from the revocation or deactivation date, a revoked or 
 deactivated ACME account is deleted.`,
 		Default: false,
 	}
@@ -560,10 +549,10 @@ after being marked revoked or deactivated.`,
 
 	fields["page_size"] = &framework.FieldSchema{
 		Type: framework.TypeInt,
-		Description: `The number of certificates to process per page during list
+		Description: `The number of certificates to process per page during list 
 pagination. This setting enables tidy to handle certificates in smaller increments,
-rather than loading the entire set into memory at once.
-Defaults to 1000 certificates, with a minimum of 5 certificates per page. To
+rather than loading the entire set into memory at once. 
+Defaults to 1000 certificates, with a minimum of 5 certificates per page. To 
 revert to the old behavior, set page size to any value less than zero.`,
 		Default: int(defaultTidyConfig.PageSize),
 	}
