@@ -240,7 +240,7 @@ func genCertBundle(t *testing.T, b *backend, s logical.Storage) *certutil.CertBu
 	fields = addCAIssueFields(fields)
 	apiData := &framework.FieldData{
 		Schema: fields,
-		Raw: map[string]any{
+		Raw: map[string]interface{}{
 			"exported": "internal",
 			"cn":       "example.com",
 			"ttl":      3600,

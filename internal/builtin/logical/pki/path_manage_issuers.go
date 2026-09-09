@@ -99,11 +99,6 @@ func buildPathGenerateRoot(b *backend, pattern string, displayAttrs *framework.D
 								Description: `The private key if exported was specified.`,
 								Required:    false,
 							},
-							externalKeyRefParam: {
-								Type:        framework.TypeString,
-								Description: externalKeyRefDesc,
-								Required:    false,
-							},
 						},
 					}},
 				},
@@ -179,11 +174,6 @@ func buildPathGenerateIntermediate(b *backend, pattern string, displayAttrs *fra
 								Description: `Specifies the format used for marshaling the private key.`,
 								Required:    false,
 							},
-							externalKeyRefParam: {
-								Type:        framework.TypeString,
-								Description: externalKeyRefDesc,
-								Required:    false,
-							},
 						},
 					}},
 				},
@@ -206,6 +196,10 @@ extension with CA: true. Only needed as a
 workaround in some compatibility scenarios
 with Active Directory Certificate Services.`,
 	}
+
+	// At this time Go does not support signing CSRs using PSS signatures, see
+	// https://github.com/golang/go/issues/45990
+	delete(ret.Fields, "use_pss")
 
 	return ret
 }
@@ -421,7 +415,7 @@ func (b *backend) pathImportIssuers(ctx context.Context, req *logical.Request, d
 	}
 
 	response := &logical.Response{
-		Data: map[string]any{
+		Data: map[string]interface{}{
 			"mapping":          issuerKeyMap,
 			"imported_keys":    createdKeys,
 			"imported_issuers": createdIssuers,

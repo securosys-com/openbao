@@ -19,19 +19,19 @@ func TestAcmeConfig(t *testing.T) {
 
 	cases := []struct {
 		name        string
-		AcmeConfig  map[string]any
+		AcmeConfig  map[string]interface{}
 		prefixUrl   string
 		validConfig bool
 		works       bool
 	}{
-		{"unspecified-root", map[string]any{
+		{"unspecified-root", map[string]interface{}{
 			"enabled":         true,
 			"allowed_issuers": "*",
 			"allowed_roles":   "*",
 			"dns_resolver":    "",
 			"eab_policy_name": "",
 		}, "acme/", true, true},
-		{"bad-policy-root", map[string]any{
+		{"bad-policy-root", map[string]interface{}{
 			"enabled":                  true,
 			"allowed_issuers":          "*",
 			"allowed_roles":            "*",
@@ -39,7 +39,7 @@ func TestAcmeConfig(t *testing.T) {
 			"dns_resolver":             "",
 			"eab_policy_name":          "",
 		}, "acme/", false, false},
-		{"forbid-root", map[string]any{
+		{"forbid-root", map[string]interface{}{
 			"enabled":                  true,
 			"allowed_issuers":          "*",
 			"allowed_roles":            "*",
@@ -47,7 +47,7 @@ func TestAcmeConfig(t *testing.T) {
 			"dns_resolver":             "",
 			"eab_policy_name":          "",
 		}, "acme/", true, false},
-		{"sign-verbatim-root", map[string]any{
+		{"sign-verbatim-root", map[string]interface{}{
 			"enabled":                  true,
 			"allowed_issuers":          "*",
 			"allowed_roles":            "*",
@@ -55,7 +55,7 @@ func TestAcmeConfig(t *testing.T) {
 			"dns_resolver":             "",
 			"eab_policy_name":          "",
 		}, "acme/", true, true},
-		{"role-root", map[string]any{
+		{"role-root", map[string]interface{}{
 			"enabled":                  true,
 			"allowed_issuers":          "*",
 			"allowed_roles":            "*",
@@ -63,7 +63,7 @@ func TestAcmeConfig(t *testing.T) {
 			"dns_resolver":             "",
 			"eab_policy_name":          "",
 		}, "acme/", true, true},
-		{"bad-role-root", map[string]any{
+		{"bad-role-root", map[string]interface{}{
 			"enabled":                  true,
 			"allowed_issuers":          "*",
 			"allowed_roles":            "*",
@@ -71,7 +71,7 @@ func TestAcmeConfig(t *testing.T) {
 			"dns_resolver":             "",
 			"eab_policy_name":          "",
 		}, "acme/", false, true},
-		{"disallowed-role-root", map[string]any{
+		{"disallowed-role-root", map[string]interface{}{
 			"enabled":                  true,
 			"allowed_issuers":          "*",
 			"allowed_roles":            "good",
@@ -81,7 +81,7 @@ func TestAcmeConfig(t *testing.T) {
 		}, "acme/", false, false},
 	}
 
-	roleConfig := map[string]any{
+	roleConfig := map[string]interface{}{
 		"issuer_ref":       "default",
 		"allowed_domains":  "example.com",
 		"allow_subdomains": true,

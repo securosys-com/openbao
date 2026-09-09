@@ -119,8 +119,15 @@ In the configuration file **config.hcl** add the additional seal configuration s
 
 ```hcl
   seal "securosys-hsm" {
-    //Define the unseal key stored on the HSM. Key has to be RSA type and should exists on HSM.
+    //Required for the Securosys seal. The standard health check performs
+    //periodic encryption and decryption operations.
+    health_check_enabled = false
+
+    //Existing HSM key used to encrypt and decrypt the OpenBao seal data.
+    //Supported key types: RSA, ML-KEM-512, ML-KEM-768, and ML-KEM-1024.
+
     key_label = "replace-me_key_label"
+
     //Key password
     key_password = "replace-me_key_password"
     //TSB API endpoint for REST requests to Securosys HSM
@@ -156,6 +163,8 @@ EOT
   }
 ```
 
+`health_check_enabled` must be set to **false** for the Securosys seal. OpenBao’s seal health check periodically performs encryption and decryption operations. Enabling it can cause unnecessary HSM operations and may trigger approval workflows for policy-protected keys.
+
 > **Note:** The configuration section **seal securosys-hsm** is only validated on startup of the ** OpenBao Server**.
 
 Auto-unseal timeout settings:
@@ -169,10 +178,10 @@ Auto-unseal timeout settings:
 
 Optional auto-unseal credentials:
 
-| Parameter | Format | Description |
-| :-- | :-- | :-- |
-| `application_key_pair` | JSON string with `private_key` and `public_key` | Application key pair used by TSB request signing. |
-| `api_keys` | JSON string with token arrays | API keys used by TSB. Supported arrays are `key_management_token`, `key_operation_token`, `approver_token`, `service_token`, and `approver_key_management_token`. |
+| Parameter              | Format                                          | Description                                                                                                                                                       |
+| :--------------------- | :---------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `application_key_pair` | JSON string with `private_key` and `public_key` | Application key pair used by TSB request signing.                                                                                                                 |
+| `api_keys`             | JSON string with token arrays                   | API keys used by TSB. Supported arrays are `key_management_token`, `key_operation_token`, `approver_token`, `service_token`, and `approver_key_management_token`. |
 
 ---
 
@@ -339,7 +348,7 @@ curl \
 Required fields:
 
 - `external_config_name`: name created under `pki/keys/external/config/<name>`.
-- `key_type`: public key type of the external key. Supported values are `rsa`, `ec`, and `ed25519`.
+- `key_type`: public key type of the external key. Supported values are `rsa`, `ec`, `ed25519` and `mldsa`.
 - `external_key_options.name`: existing key label/name in the external provider.
 
 Optional fields:
@@ -413,6 +422,8 @@ ui           = true
 plugin_directory = "./plugins"
 
 seal "securosys-hsm" {
+  health_check_enabled = false
+
   key_label        = "replace-me_key_label"
   key_password     = "replace-me_key_password"
   tsb_api_endpoint = "replace-me_tsb_api_endpoint"

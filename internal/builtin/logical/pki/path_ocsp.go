@@ -42,21 +42,21 @@ type ocspRespInfo struct {
 // These response variables should not be mutated, instead treat them as constants
 var (
 	OcspUnauthorizedResponse = &logical.Response{
-		Data: map[string]any{
+		Data: map[string]interface{}{
 			logical.HTTPContentType: ocspResponseContentType,
 			logical.HTTPStatusCode:  http.StatusUnauthorized,
 			logical.HTTPRawBody:     ocsp.UnauthorizedErrorResponse,
 		},
 	}
 	OcspMalformedResponse = &logical.Response{
-		Data: map[string]any{
+		Data: map[string]interface{}{
 			logical.HTTPContentType: ocspResponseContentType,
 			logical.HTTPStatusCode:  http.StatusBadRequest,
 			logical.HTTPRawBody:     ocsp.MalformedRequestErrorResponse,
 		},
 	}
 	OcspInternalErrorResponse = &logical.Response{
-		Data: map[string]any{
+		Data: map[string]interface{}{
 			logical.HTTPContentType: ocspResponseContentType,
 			logical.HTTPStatusCode:  http.StatusInternalServerError,
 			logical.HTTPRawBody:     ocsp.InternalErrorErrorResponse,
@@ -174,7 +174,7 @@ func (b *backend) ocspHandler(ctx context.Context, request *logical.Request, dat
 	}
 
 	return &logical.Response{
-		Data: map[string]any{
+		Data: map[string]interface{}{
 			logical.HTTPContentType: ocspResponseContentType,
 			logical.HTTPStatusCode:  http.StatusOK,
 			logical.HTTPRawBody:     byteResp,
@@ -222,7 +222,7 @@ func generateUnknownResponse(cfg *crlConfig, sc *storageContext, ocspReq *ocsp.R
 	}
 
 	return &logical.Response{
-		Data: map[string]any{
+		Data: map[string]interface{}{
 			logical.HTTPContentType: ocspResponseContentType,
 			logical.HTTPStatusCode:  http.StatusOK,
 			logical.HTTPRawBody:     byteResp,
@@ -379,7 +379,7 @@ func getOcspIssuerParsedBundle(sc *storageContext, issuerId issuerID) (*certutil
 		return nil, nil, ErrIssuerHasNoKey
 	}
 
-	caBundle, err := bundle.ToParsedCertBundleWithExtractor(certutil.OptionalExternalKeyExtractor(sc.externalKeyExtractor))
+	caBundle, err := bundle.ToParsedCertBundle()
 	if err != nil {
 		return nil, nil, err
 	}

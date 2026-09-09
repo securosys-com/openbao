@@ -23,16 +23,11 @@ replace github.com/openbao/openbao/sdk/v2 => ./sdk
 
 replace github.com/boltdb/bolt => ./internal/helper/stubbolt
 
-// replace github.com/openbao/go-kms-wrapping/v2 => github.com/securosys-com/go-kms-wrapping/v2 v2.0.0-20260706151009-b77598feef53
+replace github.com/openbao/go-kms-wrapping/v2 => github.com/securosys-com/go-kms-wrapping/v2 v2.0.0-20260909100507-6f1b63b0df21
 
-// replace github.com/openbao/go-kms-wrapping/wrappers/securosyshsm/v2 => github.com/securosys-com/go-kms-wrapping/wrappers/securosyshsm/v2 v2.0.0-20260706151009-b77598feef53
+replace github.com/openbao/go-kms-wrapping/wrappers/securosyshsm/v2 => github.com/securosys-com/go-kms-wrapping/wrappers/securosyshsm/v2 v2.0.0-20260909100507-6f1b63b0df21
 
-// replace github.com/openbao/go-kms-wrapping/kms/securosyshsm/v2 => github.com/securosys-com/go-kms-wrapping/kms/securosyshsm/v2 v2.0.0-20260706151009-b77598feef53
-replace github.com/openbao/go-kms-wrapping/v2 => ../new-go-kms-wrapping
-
-replace github.com/openbao/go-kms-wrapping/wrappers/securosyshsm/v2 => ../new-go-kms-wrapping/wrappers/securosyshsm
-
-replace github.com/openbao/go-kms-wrapping/kms/securosyshsm/v2 => ../new-go-kms-wrapping/kms/securosyshsm
+replace github.com/openbao/go-kms-wrapping/kms/securosyshsm/v2 => github.com/securosys-com/go-kms-wrapping/kms/securosyshsm/v2 v2.0.0-20260909100507-6f1b63b0df21
 
 require (
 	cloud.google.com/go/monitoring v1.30.0

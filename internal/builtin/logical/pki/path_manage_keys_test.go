@@ -44,7 +44,7 @@ func TestPKI_PathManageKeys_GenerateInternalKeys(t *testing.T) {
 		for _, keyBitParam := range tt.keyBits {
 			keyName := fmt.Sprintf("%s-%d", tt.name, keyBitParam)
 			t.Run(keyName, func(t *testing.T) {
-				data := make(map[string]any)
+				data := make(map[string]interface{})
 				if tt.keyType != "" {
 					data["key_type"] = tt.keyType
 				}
@@ -95,7 +95,7 @@ func TestPKI_PathManageKeys_GenerateExportedKeys(t *testing.T) {
 		Operation: logical.UpdateOperation,
 		Path:      "keys/generate/exported",
 		Storage:   s,
-		Data: map[string]any{
+		Data: map[string]interface{}{
 			"key_type": "ec",
 			"key_bits": 224,
 		},
@@ -365,7 +365,7 @@ func TestPKI_PathManageKeys_ImportKeyBundle(t *testing.T) {
 		Operation: logical.UpdateOperation,
 		Path:      "keys/import",
 		Storage:   s,
-		Data: map[string]any{
+		Data: map[string]interface{}{
 			"key_name":   "my-ec-key",
 			"pem_bundle": pem1,
 		},
@@ -386,7 +386,7 @@ func TestPKI_PathManageKeys_ImportKeyBundle(t *testing.T) {
 		Operation: logical.UpdateOperation,
 		Path:      "keys/import",
 		Storage:   s,
-		Data: map[string]any{
+		Data: map[string]interface{}{
 			"key_name":   "my-rsa-key",
 			"pem_bundle": pem2,
 		},
@@ -407,7 +407,7 @@ func TestPKI_PathManageKeys_ImportKeyBundle(t *testing.T) {
 		Operation: logical.UpdateOperation,
 		Path:      "keys/import",
 		Storage:   s,
-		Data: map[string]any{
+		Data: map[string]interface{}{
 			"key_name":   "my-new-ec-key",
 			"pem_bundle": pem1,
 		},
@@ -432,7 +432,7 @@ func TestPKI_PathManageKeys_ImportKeyBundle(t *testing.T) {
 		Operation: logical.UpdateOperation,
 		Path:      "keys/import",
 		Storage:   s,
-		Data: map[string]any{
+		Data: map[string]interface{}{
 			"key_name":   "my-ec-key",
 			"pem_bundle": pem3,
 		},
@@ -467,7 +467,7 @@ func TestPKI_PathManageKeys_ImportKeyBundle(t *testing.T) {
 		Operation: logical.UpdateOperation,
 		Path:      "keys/import",
 		Storage:   s,
-		Data: map[string]any{
+		Data: map[string]interface{}{
 			"key_name":   "my-rsa-key",
 			"pem_bundle": pem2,
 		},
@@ -492,7 +492,7 @@ func TestPKI_PathManageKeys_DeleteDefaultKeyWarns(t *testing.T) {
 		Operation:  logical.UpdateOperation,
 		Path:       "keys/generate/internal",
 		Storage:    s,
-		Data:       map[string]any{"key_type": "ec"},
+		Data:       map[string]interface{}{"key_type": "ec"},
 		MountPoint: "pki/",
 	})
 	require.NoError(t, err, "Failed generating key")
@@ -520,7 +520,7 @@ func TestPKI_PathManageKeys_DeleteUsedKeyFails(t *testing.T) {
 		Operation:  logical.UpdateOperation,
 		Path:       "issuers/generate/root/internal",
 		Storage:    s,
-		Data:       map[string]any{"common_name": "test.com"},
+		Data:       map[string]interface{}{"common_name": "test.com"},
 		MountPoint: "pki/",
 	})
 	require.NoError(t, err, "Failed generating issuer")
@@ -547,7 +547,7 @@ func TestPKI_PathManageKeys_UpdateKeyDetails(t *testing.T) {
 		Operation:  logical.UpdateOperation,
 		Path:       "keys/generate/internal",
 		Storage:    s,
-		Data:       map[string]any{"key_type": "ec"},
+		Data:       map[string]interface{}{"key_type": "ec"},
 		MountPoint: "pki/",
 	})
 	require.NoError(t, err, "Failed generating key")
@@ -559,7 +559,7 @@ func TestPKI_PathManageKeys_UpdateKeyDetails(t *testing.T) {
 		Operation:  logical.UpdateOperation,
 		Path:       "key/" + keyId.String(),
 		Storage:    s,
-		Data:       map[string]any{"key_name": "new-name"},
+		Data:       map[string]interface{}{"key_name": "new-name"},
 		MountPoint: "pki/",
 	})
 	schema.ValidateResponse(t, schema.GetResponseSchema(t, b.Route("key/"+keyId.String()), logical.UpdateOperation), resp, true)
@@ -588,7 +588,7 @@ func TestPKI_PathManageKeys_UpdateKeyDetails(t *testing.T) {
 		Operation:  logical.UpdateOperation,
 		Path:       "key/" + keyId.String(),
 		Storage:    s,
-		Data:       map[string]any{"key_name": "a-bad\\-name"},
+		Data:       map[string]interface{}{"key_name": "a-bad\\-name"},
 		MountPoint: "pki/",
 	})
 	require.NoError(t, err, "failed updating key with a bad name")
@@ -604,7 +604,7 @@ func TestPKI_PathManageKeys_ImportKeyBundleBadData(t *testing.T) {
 		Operation: logical.UpdateOperation,
 		Path:      "keys/import",
 		Storage:   s,
-		Data: map[string]any{
+		Data: map[string]interface{}{
 			"key_name":   "my-ec-key",
 			"pem_bundle": "this-is-not-a-pem-bundle",
 		},
@@ -620,7 +620,7 @@ func TestPKI_PathManageKeys_ImportKeyBundleBadData(t *testing.T) {
 		Operation: logical.UpdateOperation,
 		Path:      "keys/import",
 		Storage:   s,
-		Data: map[string]any{
+		Data: map[string]interface{}{
 			"pem_bundle": bundle.Certificate,
 		},
 		MountPoint: "pki/",
@@ -649,7 +649,7 @@ func TestPKI_PathManageKeys_ImportKeyRejectsMultipleKeys(t *testing.T) {
 		Operation: logical.UpdateOperation,
 		Path:      "keys/import",
 		Storage:   s,
-		Data: map[string]any{
+		Data: map[string]interface{}{
 			"key_name":   "my-ec-key",
 			"pem_bundle": importPem,
 		},

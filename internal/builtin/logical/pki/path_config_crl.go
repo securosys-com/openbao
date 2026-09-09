@@ -362,7 +362,7 @@ func (b *backend) pathCRLWrite(ctx context.Context, req *logical.Request, d *fra
 
 func genResponseFromCrlConfig(config *crlConfig) *logical.Response {
 	return &logical.Response{
-		Data: map[string]any{
+		Data: map[string]interface{}{
 			"expiry":                        config.Expiry,
 			"disable":                       config.Disable,
 			"ocsp_disable":                  config.OcspDisable,
